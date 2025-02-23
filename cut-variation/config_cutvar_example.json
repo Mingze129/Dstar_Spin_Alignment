@@ -1,0 +1,90 @@
+{
+    "rawyields": {
+      "inputdir": "../Output/Dev_test/Cut-variation/pt_3_5/raw_yield",
+      "inputfiles": [
+       
+       
+        "5_raw_yield_0.12_0.15.root",
+        "6_raw_yield_0.15_0.18.root",
+        "7_raw_yield_0.18_0.20.root",
+        "8_raw_yield_0.20_0.23.root",
+        "9_raw_yield_0.23_0.25.root",
+        "10_raw_yield_0.25_0.28.root",
+        "11_raw_yield_0.28_0.30.root",
+        "12_raw_yield_0.30_0.33.root",
+        "13_raw_yield_0.33_0.35.root",
+        "14_raw_yield_0.35_0.38.root",
+        "15_raw_yield_0.38_0.40.root",
+        "16_raw_yield_0.40_0.43.root",
+        "17_raw_yield_0.43_0.45.root",
+        "18_raw_yield_0.45_0.48.root",
+        "19_raw_yield_0.48_0.50.root",
+        "20_raw_yield_0.50_0.53.root",
+        "21_raw_yield_0.53_0.55.root",
+        "22_raw_yield_0.55_0.58.root",
+        "23_raw_yield_0.58_0.60.root",
+        "24_raw_yield_0.60_0.62.root",
+        "25_raw_yield_0.62_0.65.root",
+        "26_raw_yield_0.65_0.68.root",
+        "27_raw_yield_0.68_0.70.root",
+        "28_raw_yield_0.70_0.73.root",
+        "29_raw_yield_0.73_0.75.root",
+        "30_raw_yield_0.75_0.78.root"
+
+
+      ],
+      "histoname": "hraw_yield"
+    },
+    "efficiencies": {
+      "inputdir": "../Output/Dev_test/Cut-variation/pt_3_5/efficiency",
+      "inputfiles": [
+  
+        "5_eff_0.12_0.15.root",
+        "6_eff_0.15_0.18.root",
+        "7_eff_0.18_0.20.root",
+        "8_eff_0.20_0.23.root",
+        "9_eff_0.23_0.25.root",
+        "10_eff_0.25_0.28.root",
+        "11_eff_0.28_0.30.root",
+        "12_eff_0.30_0.33.root",
+        "13_eff_0.33_0.35.root",
+        "14_eff_0.35_0.38.root",
+        "15_eff_0.38_0.40.root",
+        "16_eff_0.40_0.43.root",
+        "17_eff_0.43_0.45.root",
+        "18_eff_0.45_0.48.root",
+        "19_eff_0.48_0.50.root",
+        "20_eff_0.50_0.53.root",
+        "21_eff_0.53_0.55.root",
+        "22_eff_0.55_0.58.root",
+        "23_eff_0.58_0.60.root",
+        "24_eff_0.60_0.62.root",
+        "25_eff_0.62_0.65.root",
+        "26_eff_0.65_0.68.root",
+        "27_eff_0.68_0.70.root",
+        "28_eff_0.70_0.73.root",
+        "29_eff_0.73_0.75.root",
+        "30_eff_0.75_0.78.root"
+      ],
+      "histonames": {
+        "prompt": "heff_prompt",
+        "nonprompt": "heff_nonprompt"
+      }
+    },
+    "minimisation": {
+        "correlated": true
+    },
+    "central_efficiency": {
+        "computerawfrac": true,
+        "inputdir": "../Output/Dev_test/Cut-variation/pt_3_5/efficiency",
+        "inputfile": "0_eff_0.00_0.03.root",
+        "histonames": {
+            "prompt": "heff_prompt",
+            "nonprompt": "heff_nonprompt"
+        }
+    },
+    "output": {
+        "directory": "../Output/Dev_test/Cut-variation/pt_3_5/fraction",
+        "file": "CutVar_Dev_test.root"
+    }
+}
