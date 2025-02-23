@@ -401,22 +401,30 @@ class DataOps(object):
                     hfrac_np_fd.SetBinError(ifd+1, raw_np_frc_error)
 
                     hraw_yield = fd_dir.Get("hraw_yield")
-                    hEff = fd_dir.Get("hEff_total_cos")
+                    hEff_cos = fd_dir.Get("hEff_total_cos")
+                    hp_eff_cos = fd_dir.Get("hEff_prompt_cos")
+                    hnp_eff_cos = fd_dir.Get("hEff_nonprompt_cos")
                     hfrac_cos = hraw_yield.Clone("hfrac_cos")
 
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
                         hfrac_cos.SetBinContent(icos+1, raw_np_frc)
                         hfrac_cos.SetBinError(icos+1,raw_np_frc_error)
+  
                     hcorr_yield_cos = hraw_yield.Clone("hcorr_yield_cos")
-                    hcorr_yield_cos.Divide(hEff)
-                    hcorr_yield_cos.Write("hcorr_yield",ROOT.TObject.kOverwrite)
+                    hcorr_yield_cos.Divide(hEff_cos)
+                    hcorr_yield_cos.Write("hcorr_yield_cos_old",ROOT.TObject.kOverwrite)
+
+                    hEff_frac , hcorr_yield_frac = self.get_total_eff(hraw_yield,hfrac_cos,hp_eff_cos,hnp_eff_cos)
+
+                    hEff_frac.Write("hEff_total",ROOT.TObject.kOverwrite)
+                    hcorr_yield_frac.Write("hcorr_yield",ROOT.TObject.kOverwrite)
 
                 pt_bin_dir.cd()
                 hfrac_np_fd.Write("hfrac",ROOT.TObject.kOverwrite)
 
         outfile.Close()
-    
+        
     def Reduceing(self, file):
 
         reduced_file = file.replace(".root", "_reduced.root")
