@@ -180,6 +180,13 @@ class DataOps(object):
             print(f"Writing efficiency of {frame} framework...")
             Reco_prompt, Reco_nonprompt, Gen_prompt, Gen_nonprompt = self.mc_ops.get_mc_sparse(mc,frame)
 
+            Reco_total = Reco_prompt.Clone("Reco_total")
+            Reco_total.Add(Reco_nonprompt)
+
+            Gen_total = Gen_prompt.Clone("Gen_total")
+            Gen_total.Add(Gen_nonprompt)
+
+
             type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
@@ -187,6 +194,7 @@ class DataOps(object):
             y_max = Gen_prompt.GetAxis(2).FindBin(0.8-1e-6)
             Gen_prompt.GetAxis(2).SetRange(y_min,y_max)
             Gen_nonprompt.GetAxis(2).SetRange(y_min,y_max)
+            Gen_total.GetAxis(2).SetRange(y_min,y_max)
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
 
@@ -204,10 +212,13 @@ class DataOps(object):
                 Reco_nonprompt.GetAxis(1).SetRange(pt_min,pt_max)
                 Gen_prompt.GetAxis(0).SetRange(pt_min,pt_max)
                 Gen_nonprompt.GetAxis(0).SetRange(pt_min,pt_max)
+                Reco_total.GetAxis(1).SetRange(pt_min,pt_max)
+                Gen_total.GetAxis(0).SetRange(pt_min,pt_max)
 
                 bkg_max = Reco_prompt.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
                 Reco_prompt.GetAxis(6).SetRange(0, bkg_max)
                 Reco_nonprompt.GetAxis(6).SetRange(0, bkg_max)
+                Reco_total.GetAxis(6).SetRange(0, bkg_max)
                 
                 cos_edges = pt_bin_set["cos_bin_edges"]
                 fd_edges = pt_bin_set["fd_edges"]
@@ -228,6 +239,10 @@ class DataOps(object):
                 hGen_nonprompt_fd = ROOT.TH1F("hGen_nonprompt_fd",f"hGen_nonprompt_fd_{frame}_pt_{pt_min_edge}_{pt_max_edge};FD;Entries",len(fd_bin)-1,fd_bin)
                 hEff_nonprompt_fd = ROOT.TH1F("hEff_nonprompt_fd",f"hEff_nonprompt_fd_{frame}_pt_{pt_min_edge}_{pt_max_edge};FD;Efficiency",len(fd_bin)-1,fd_bin)
                 
+                hReco_total_fd = ROOT.TH1F("hReco_total_fd",f"hReco_total_fd_{frame}_pt_{pt_min_edge}_{pt_max_edge};FD;Entries",len(fd_bin)-1,fd_bin)
+                hGen_total_fd = ROOT.TH1F("hGen_total_fd",f"hGen_total_fd_{frame}_pt_{pt_min_edge}_{pt_max_edge};FD;Entries",len(fd_bin)-1,fd_bin)
+                hEff_total_fd = ROOT.TH1F("hEff_total_fd",f"hEff_total_fd_{frame}_pt_{pt_min_edge}_{pt_max_edge};FD;Efficiency",len(fd_bin)-1,fd_bin)
+
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
 
                     fd_dir = pt_bin_dir.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
@@ -238,17 +253,22 @@ class DataOps(object):
                     Reco_nonprompt.GetAxis(5).SetRange(0,cos_max)
                     Gen_prompt.GetAxis(3).SetRange(0,cos_max)
                     Gen_nonprompt.GetAxis(3).SetRange(0,cos_max)
+                    Reco_total.GetAxis(5).SetRange(0,cos_max)
+                    Gen_total.GetAxis(3).SetRange(0,cos_max)
 
                     fd_min = Reco_prompt.GetAxis(7).FindBin(fd_min_edge+1e-6)
                     fd_max = Reco_prompt.GetAxis(7).FindBin(fd_max_edge-1e-6)
                     Reco_prompt.GetAxis(7).SetRange(fd_min,fd_max)
                     Reco_nonprompt.GetAxis(7).SetRange(fd_min,fd_max)
+                    Reco_total.GetAxis(7).SetRange(fd_min,fd_max)
 
                     hReco_prompt_fd = self.Entries_fill(hReco_prompt_fd,Reco_prompt,ifd+1)
                     hReco_nonprompt_fd = self.Entries_fill(hReco_nonprompt_fd,Reco_nonprompt,ifd+1)
+                    hReco_total_fd =  self.Entries_fill(hReco_total_fd,Reco_total,ifd+1)
 
                     hGen_prompt_fd = self.Entries_fill(hGen_prompt_fd,Gen_prompt,ifd+1)
                     hGen_nonprompt_fd = self.Entries_fill(hGen_nonprompt_fd,Gen_nonprompt,ifd+1)
+                    hGen_total_fd = self.Entries_fill(hGen_total_fd,Gen_total,ifd+1)
 
                     cos_bin = np.array(cos_edges)
                 
@@ -260,6 +280,11 @@ class DataOps(object):
                     hGen_nonprompt_cos = ROOT.TH1F("hGen_nonprompt_cos",f"hGen_nonprompt_cos_{frame}_pt_{pt_min_edge}_{pt_max_edge};Cos#vartheta*;Entries",len(cos_bin)-1,cos_bin)
                     hEff_nonprompt_cos = ROOT.TH1F("hEff_nonprompt_cos",f"hEff_nonprompt_cos_{frame}_pt_{pt_min_edge}_{pt_max_edge};Cos#vartheta*;Efficiency",len(cos_bin)-1,cos_bin)
              
+                    hReco_total_cos = ROOT.TH1F("hReco_total_cos",f"hReco_total_cos_{frame}_pt_{pt_min_edge}_{pt_max_edge};Cos#vartheta*;Entries",len(cos_bin)-1,cos_bin)
+                    hGen_total_cos = ROOT.TH1F("hGen_total_cos",f"hGen_total_cos_{frame}_pt_{pt_min_edge}_{pt_max_edge};Cos#vartheta*;Entries",len(cos_bin)-1,cos_bin)
+                    hEff_total_cos = ROOT.TH1F("hEff_total_cos",f"hEff_total_cos_{frame}_pt_{pt_min_edge}_{pt_max_edge};Cos#vartheta*;Efficiency",len(cos_bin)-1,cos_bin)
+
+
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
                         cos_dir = fd_dir.mkdir(f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", "", ROOT.kTRUE)
@@ -271,12 +296,16 @@ class DataOps(object):
                         Reco_nonprompt.GetAxis(5).SetRange(cos_min,cos_max)
                         Gen_prompt.GetAxis(3).SetRange(cos_min,cos_max)
                         Gen_nonprompt.GetAxis(3).SetRange(cos_min,cos_max)
+                        Reco_total.GetAxis(5).SetRange(cos_min,cos_max)
+                        Gen_total.GetAxis(3).SetRange(cos_min,cos_max)
 
                         hReco_prompt_cos = self.Entries_fill(hReco_prompt_cos,Reco_prompt,icos+1)
                         hReco_nonprompt_cos = self.Entries_fill(hReco_nonprompt_cos,Reco_nonprompt,icos+1)
+                        hReco_total_cos = self.Entries_fill(hReco_total_cos,Reco_total,icos+1)
 
                         hGen_prompt_cos = self.Entries_fill(hGen_prompt_cos,Gen_prompt,icos+1)
                         hGen_nonprompt_cos = self.Entries_fill(hGen_nonprompt_cos,Gen_nonprompt,icos+1)
+                        hGen_total_cos = self.Entries_fill(hGen_total_cos,Gen_total,icos+1)
 
                     fd_dir.cd()
 
@@ -286,6 +315,8 @@ class DataOps(object):
                     hEff_nonprompt_cos.Divide(hReco_nonprompt_cos,hGen_nonprompt_cos,1,1,"B")
                     hEff_nonprompt_cos.Write("",ROOT.TObject.kOverwrite)
 
+                    hEff_total_cos.Divide(hReco_total_cos,hGen_total_cos,1,1,"B")
+                    hEff_total_cos.Write("",ROOT.TObject.kOverwrite)
 
                     # Sligihtly different if calculate efficiency from cos's entries
                     # Reco_error = ctypes.c_double()
@@ -303,6 +334,9 @@ class DataOps(object):
 
                 hEff_nonprompt_fd.Divide(hReco_nonprompt_fd,hGen_nonprompt_fd,1,1,"B")
                 hEff_nonprompt_fd.Write("",ROOT.TObject.kOverwrite)
+
+                hEff_total_fd.Divide(hReco_total_fd,hGen_total_fd,1,1,"B")
+                hEff_total_fd.Write("",ROOT.TObject.kOverwrite)
 
         outfile.Close()
 
@@ -367,19 +401,15 @@ class DataOps(object):
                     hfrac_np_fd.SetBinError(ifd+1, raw_np_frc_error)
 
                     hraw_yield = fd_dir.Get("hraw_yield")
-                    hp_eff_cos = fd_dir.Get("hEff_prompt_cos")
-                    hnp_eff_cos = fd_dir.Get("hEff_nonprompt_cos")
+                    hEff = fd_dir.Get("hEff_total_cos")
                     hfrac_cos = hraw_yield.Clone("hfrac_cos")
-
 
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
                         hfrac_cos.SetBinContent(icos+1, raw_np_frc)
                         hfrac_cos.SetBinError(icos+1,raw_np_frc_error)
-  
-                    hEff_cos , hcorr_yield_cos = self.get_total_eff(hraw_yield,hfrac_cos,hp_eff_cos,hnp_eff_cos)
-
-                    hEff_cos.Write("hEff_total",ROOT.TObject.kOverwrite)
+                    hcorr_yield_cos = hraw_yield.Clone("hcorr_yield_cos")
+                    hcorr_yield_cos.Divide(hEff)
                     hcorr_yield_cos.Write("hcorr_yield",ROOT.TObject.kOverwrite)
 
                 pt_bin_dir.cd()

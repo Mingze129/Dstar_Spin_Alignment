@@ -42,7 +42,7 @@ data, mc = data_ops.load_data()
 
 # fit_ops.get_raw_yield()
 
-# data_ops.read_frac()
+data_ops.read_frac()
 
 spin_ops.get_rho()
 # spin_ops.write_simu_rho()
