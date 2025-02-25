@@ -23,6 +23,13 @@ class FitOps(object):
             fit_root.Close()
         self.ax_title = r"$M(\mathrm{K\pi\pi}) - M(\mathrm{K\pi})$ GeV$/c^2$"
         self.func_pars = {
+            "Init_value": {"sigma": 0.0005,
+                           "frac": 0.1,
+                           "nr": 20,
+                           "nl":20,
+                           "alphal": 1.5,
+                           "alphar": 1.5
+                           },
             "expopowext": ["power","c1","c2","c3"],
             "expopow": ["lam"],
             "doublecb": ["frac","mu","sigma","alphal","alphar","nl","nr"],
@@ -38,11 +45,14 @@ class FitOps(object):
 
         for frame in frame_list:
 
+            self.logger.info(f"Start fitting raw-yield for {frame} frame...")
+
             type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
 
+                self.logger.info(f"     Fitting raw-yield for pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}...")
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
                     continue
@@ -115,7 +125,9 @@ class FitOps(object):
                         hraw_yield.SetBinError(icos+1, raw_yield_error)
                     fd_dir.cd()
                     hraw_yield.Write("", ROOT.TObject.kOverwrite)
-                   
+
+        outfile.Close()
+                 
     def fit_inv_mass(self, outfile_name, data_dir,  task_name , fit_set):
 
         os.makedirs(os.path.join(fit_set["out_dir"], "Mass-Fit/Figure"), exist_ok=True)
@@ -135,6 +147,14 @@ class FitOps(object):
         mass_init = (Particle.from_pdgid(413).mass - Particle.from_pdgid(421).mass)*1.e-3
         fitter.set_particle_mass(0, mass=mass_init, limits=[mass_init*0.95, mass_init*1.05])
 
+        for par in self.func_pars[fit_set["bkg_func"][0]]:
+            if par in self.func_pars["Init_value"]:
+                fitter.set_background_initpar(0,par,self.func_pars["Init_value"][par])
+
+        for par in self.func_pars[fit_set["signal_func"][0]]:
+             if par in self.func_pars["Init_value"]:
+                fitter.set_signal_initpar(0,par,self.func_pars["Init_value"][par])
+
         if fit_set["fix_pars"][0]:
             for par in fit_set["fix_pars"][2:]:
                 if par in self.func_pars[fit_set["bkg_func"][0]]:
@@ -145,16 +165,29 @@ class FitOps(object):
         fit_result = fitter.mass_zfit()
 
         if fit_result.converged:
-            fig , axs= fitter.plot_mass_fit(style="ATLAS", show_extra_info=False,
-                                        figsize=(8, 8), extra_info_loc=["upper left", "right"],
-                                        axis_title=self.ax_title)
-            fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
-            if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
-                fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
-                fit_root.Close()
-            fitter.dump_to_root(filename = f"{os.path.join(fit_dir, 'AnalysisFit.root')}", option="update",
-                                    suffix=f"_{task_name}_bkg")
-    
+            try:
+                fig , axs= fitter.plot_mass_fit(style="ATLAS", show_extra_info=True,
+                                            figsize=(8, 8), extra_info_loc=["upper left", "right"],
+                                            axis_title=self.ax_title)
+                fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
+                if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
+                    fit_root.Close()
+                fitter.dump_to_root(filename = f"{os.path.join(fit_dir, 'AnalysisFit.root')}", option="update",
+                                        suffix=f"_{task_name}_bkg")
+            except:
+                fig , axs= fitter.plot_mass_fit(style="ATLAS", show_extra_info=False,
+                                            figsize=(8, 8), extra_info_loc=["upper left", "right"],
+                                            axis_title=self.ax_title)
+                fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
+                if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
+                    fit_root.Close()
+                fitter.dump_to_root(filename = f"{os.path.join(fit_dir, 'AnalysisFit.root')}", option="update",
+                                        suffix=f"_{task_name}_bkg")
+        else:
+            self.logger.error(f"Fit for {task_name} is not converged!")
+
         par_dict = {}
         for par in self.func_pars[fit_set["bkg_func"][0]]:
             par_dict[par] = fitter.get_background_parameter(0, par)[0]

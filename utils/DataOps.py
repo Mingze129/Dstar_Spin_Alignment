@@ -24,28 +24,28 @@ class DataOps(object):
     
 
     def load_data(self):
-        print("Loading data...")
+        self.logger.info("Loading data...")
         D_file_list = self.config.Target["data"]
         M_file_list = self.config.Target["mc"]
-        print(f"target data files: {D_file_list}")
-        print(f"target mc files: {M_file_list}")
-        print("Finding data in directory: ", self.config.Directories["InputDir"])
+        self.logger.info(f"target data files: {D_file_list}")
+        self.logger.info(f"target mc files: {M_file_list}")
+        self.logger.info("Finding data in directory: ", self.config.Directories["InputDir"])
 
         if not os.path.exists(self.config.Directories["InputDir"]):
-            print("Input directory does not exist.")
+            self.logger.error("Input directory does not exist.")
             sys.exit(1)
         try:
             D_file_finded = os.listdir(self.config.Directories["InputDir"]+"/Data/Primary")
             D_file_reduced = os.listdir(self.config.Directories["InputDir"]+"/Data/Reduced")
             M_file_finded = os.listdir(self.config.Directories["InputDir"]+"/MC")
         except:
-            print("Error when Locate files, please check the directory.")
+            self.logger.error("Error when Locate files, please check the directory.")
             sys.exit(1)
 
         MC_list = []
         for M_file in M_file_list:
             if M_file not in M_file_finded:
-                print(f"MC file {M_file} not found.")
+                self.logger.error(f"MC file {M_file} not found.")
                 sys.exit(1)
             MC_list.append(os.path.join(self.config.Directories["InputDir"],"MC",M_file))
 
@@ -53,9 +53,9 @@ class DataOps(object):
         for D_file in D_file_list:
             reduced_file = D_file.replace(".root", "_reduced.root")
             if reduced_file not in D_file_reduced:
-                print(f"Reduced data file {reduced_file} not found!\nTry to reduce data file {D_file}...")
+                self.logger.warning(f"Reduced data file {reduced_file} not found!\nTry to reduce data file {D_file}...")
                 if D_file not in D_file_finded:
-                    print(f"Data file {D_file} not found.")
+                    self.logger.error(f"Data file {D_file} not found.")
                     sys.exit(1)
                 reduce_key.append(True)
             elif self.config.Force_Reducing:
@@ -66,7 +66,7 @@ class DataOps(object):
         Reduced_file = []
         for i, (D_file, key) in enumerate(zip(D_file_list, reduce_key)):
             if key:
-                print(f"Reducing data file {D_file}...")
+                self.logger.info(f"Reducing data file {D_file}...")
                 Reduced_file.append(self.Reduceing(D_file))
             else:
                 Reduced_file.append(os.path.join(self.config.Directories["InputDir"],"Data/Reduced",D_file.replace(".root", "_reduced.root")))
@@ -83,7 +83,7 @@ class DataOps(object):
 
         for frame in frame_list:
 
-            print(f"Writing data of {frame} framework...")
+            self.logger.info(f"Writing data of {frame} framework...")
             type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
@@ -92,7 +92,7 @@ class DataOps(object):
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
                     continue
-                print(f"    Working in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+                self.logger.info(f"    Working in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
                 
@@ -177,7 +177,7 @@ class DataOps(object):
 
         for frame in frame_list:
 
-            print(f"Writing efficiency of {frame} framework...")
+            self.logger.info(f"Writing efficiency of {frame} framework...")
             Reco_prompt, Reco_nonprompt, Gen_prompt, Gen_nonprompt = self.mc_ops.get_mc_sparse(mc,frame)
 
             Reco_total = Reco_prompt.Clone("Reco_total")
@@ -185,7 +185,6 @@ class DataOps(object):
 
             Gen_total = Gen_prompt.Clone("Gen_total")
             Gen_total.Add(Gen_nonprompt)
-
 
             type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
@@ -201,7 +200,7 @@ class DataOps(object):
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
                     continue
-                print(f"    Working in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+                self.logger.info(f"    Working in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
                 pt_bin_dir.cd()
@@ -350,7 +349,7 @@ class DataOps(object):
 
         for frame in frame_list:
 
-            print(f"Reading fraction of {frame} framework...")
+            self.logger.info(f"Reading fraction of {frame} framework...")
             type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
@@ -359,7 +358,7 @@ class DataOps(object):
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
                     continue
-                print(f"    Working in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+                self.logger.info(f"    Working in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
                 pt_bin_dir.cd()
@@ -383,6 +382,8 @@ class DataOps(object):
                 corr_yield_prompt = frac_file.Get("hCorrYieldsPrompt")
                 corr_yield_nonprompt = frac_file.Get("hCorrYieldsNonPrompt")
                 Cov_prompt_nonprompt = frac_file.Get("hCovPromptNonPrompt")
+
+                hEff_total = pt_bin_dir.Get("fd_0.00_1.00/hEff_total_cos")
                 
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
 
@@ -402,8 +403,8 @@ class DataOps(object):
 
                     hraw_yield = fd_dir.Get("hraw_yield")
                     hEff_cos = fd_dir.Get("hEff_total_cos")
-                    hp_eff_cos = fd_dir.Get("hEff_prompt_cos")
-                    hnp_eff_cos = fd_dir.Get("hEff_nonprompt_cos")
+                    # hp_eff_cos = fd_dir.Get("hEff_prompt_cos")
+                    # hnp_eff_cos = fd_dir.Get("hEff_nonprompt_cos")
                     hfrac_cos = hraw_yield.Clone("hfrac_cos")
 
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
@@ -415,10 +416,14 @@ class DataOps(object):
                     hcorr_yield_cos.Divide(hEff_cos)
                     hcorr_yield_cos.Write("hcorr_yield_cos_old",ROOT.TObject.kOverwrite)
 
-                    hEff_frac , hcorr_yield_frac = self.get_total_eff(hraw_yield,hfrac_cos,hp_eff_cos,hnp_eff_cos)
+                    # hEff_frac , hcorr_yield_frac = self.get_total_eff(hraw_yield,hfrac_cos,hp_eff_cos,hnp_eff_cos)
+                    hcorr_yield_total = hraw_yield.Clone("hcorr_yield_total")
+                    hcorr_yield_total.Divide(hEff_total)
+                    hcorr_yield_total.GetYaxis().SetTitle("Corrected Yield")
+                    hcorr_yield_total.SetTitle("Corrected Yield")
 
-                    hEff_frac.Write("hEff_total",ROOT.TObject.kOverwrite)
-                    hcorr_yield_frac.Write("hcorr_yield",ROOT.TObject.kOverwrite)
+                    hEff_total.Write("hEff_total",ROOT.TObject.kOverwrite)
+                    hcorr_yield_total.Write("hcorr_yield",ROOT.TObject.kOverwrite)
 
                 pt_bin_dir.cd()
                 hfrac_np_fd.Write("hfrac",ROOT.TObject.kOverwrite)

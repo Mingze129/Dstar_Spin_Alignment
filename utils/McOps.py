@@ -22,7 +22,7 @@ class McOps(object):
         Gen_nonprompt_mc  = list()
         for (mc_file, frac) in zip(mc_list,self.fraction):
 
-            print(f"\nLoading MC samples from {mc_file.split('/')[-1]} ...")
+            (f"\nLoading MC samples from {mc_file.split('/')[-1]} ...")
             infile = ROOT.TFile(mc_file, "READ")
             if not infile:
                 print(f"MC file {mc_file} not found")

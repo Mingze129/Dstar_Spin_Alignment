@@ -3,6 +3,9 @@ import sys
 import argparse
 import numpy as np
 import ctypes
+from datetime import datetime
+
+now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -12,7 +15,7 @@ import Configurations as config
 
 outdir = out_dir = os.path.join(config.Directories["OutputDir"],config.Analysis["Task_Name"])
 os.makedirs(out_dir, exist_ok=True)
-logger = logger_config(log_path = os.path.join(outdir, "Run.log"), log_name = "Running Control")
+logger = logger_config(log_path = os.path.join(outdir, f"Run_{datetime.now().strftime('%Y-%m-%d')}.log"), log_name = "Running Control")
 
 logger.info("")
 logger.info("-"*50)
@@ -29,23 +32,25 @@ frac_ops = FracOps(config,logger_config(log_path = os.path.join(outdir, "Run.log
 
 
 
-logger.info("Get efficiency and raw-yield for cut-variation")
-# frac_ops.get_input()
-
-# frac_ops.get_fraction()
+logger.info("Get efficiency and raw-yield for cut-variation...")
+frac_ops.get_input()
+logger.info("Get fraction by cut-variation method...")
+frac_ops.get_fraction()
 
 logger.info("Writing data into analysis file...")
 data, mc = data_ops.load_data()
-# data_ops.write_data(data)
-# data_ops.write_mc(mc)
+data_ops.write_data(data)
+data_ops.write_mc(mc)
 
+logger.info("Fitting raw-yield...")
+fit_ops.get_raw_yield()
 
-# fit_ops.get_raw_yield()
+logger.info("Get corrected yield...")
+data_ops.read_frac()
 
-# data_ops.read_frac()
-
-# spin_ops.get_rho()
-# spin_ops.write_simu_rho()
+logger.info("Extracted rho by fit the corrected yield...")
+spin_ops.get_rho()
+spin_ops.write_simu_rho()
 spin_ops.extro_rho()
 
 

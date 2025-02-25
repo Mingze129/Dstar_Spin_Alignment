@@ -2,6 +2,9 @@ import os
 import sys
 import numpy as np
 
+
+working_dir = "/home/mingze/work/dstar/Dstar_Spin_Alignment"
+
 Doing = {
     "3-5":     True,
     "5-7":     True,
@@ -13,13 +16,13 @@ Doing = {
 }
 
 Analysis = {
-    # "Framework": ["Helicity","Production","Beam"],
-    "Framework": ["Helicity"],
-    "Task_Name": "Eff_test",
+    "Framework": ["Helicity","Production"],
+    # "Framework": ["Helicity"],
+    "Task_Name": "Full_test",
     "Mc_reweight": False,
-    "Cos_Bin_Bkg": False,
-    "MC_only": False,
-    "Eff_Correction": False,
+    # "Cos_Bin_Bkg": False,
+    # "MC_only": False,
+    # "Eff_Correction": False,
     "Cre_fit_root": True
 }
 
@@ -33,10 +36,10 @@ Target = {
 
 Directories = {
     # "WorkDir": os.getcwd(),
-    "WorkDir": "/home/mingze/work/dstar/Dstar_Spin_Alignment",
-    "LogDir": os.path.join(os.getcwd(), "Logs"),
-    "InputDir": os.path.join("/home/mingze/work/dstar/Dstar_Spin_Alignment", "Input"),
-    "OutputDir": os.path.join(os.getcwd(), "Output"),
+    "WorkDir": working_dir,
+    "LogDir": os.path.join(working_dir, "Logs"),
+    "InputDir": os.path.join(working_dir, "Input"),
+    "OutputDir": os.path.join(working_dir, "Output"),
 }
 
 Weights = {
@@ -68,7 +71,10 @@ BinSet = {
             "rot_bkg_used": False,
             "Mass_range": [0.1396, 0.160],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.025)
+            "var_fd_range": np.arange(0.0, 1.0001, 0.025),
+            "frac_min_bin": 3,
+            "frac_max_bin": 35,
+            "frac_remove_bin": []
         },
         "5-7": {   
             "doing": Doing["5-7"],      
@@ -83,7 +89,10 @@ BinSet = {
             "rot_bkg_used": False,
             "Mass_range": [0.1396, 0.160],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.04)
+            "var_fd_range": np.arange(0.0, 1.0001, 0.04),
+            "frac_min_bin": 3,
+            "frac_max_bin": 25,
+            "frac_remove_bin": []
         },
         "7-10": {      
             "doing": Doing["7-10"], 
@@ -98,7 +107,10 @@ BinSet = {
             "rot_bkg_used": False,
             "Mass_range": [0.1396, 0.170],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.04)
+            "var_fd_range": np.arange(0.0, 1.0001, 0.04),
+            "frac_min_bin": 3,
+            "frac_max_bin": 24,
+            "frac_remove_bin": []
         },
         "10-20": {  
             "doing": Doing["10-20"],       
@@ -113,7 +125,10 @@ BinSet = {
             "rot_bkg_used": False,
             "Mass_range": [0.1396, 0.170],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.05)
+            "var_fd_range": np.arange(0.0, 1.0001, 0.05),
+            "frac_min_bin": 1,
+            "frac_max_bin": 24,
+            "frac_remove_bin": [9,13]
         },
         "20-30": {   
             "doing": Doing["20-30"],   
@@ -128,7 +143,10 @@ BinSet = {
             "rot_bkg_used": False,
             "Mass_range": [0.1396, 0.175],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.05)
+            "var_fd_range": np.arange(0.0, 1.0001, 0.05),
+            "frac_min_bin": 1,
+            "frac_max_bin": 24,
+            "frac_remove_bin": [9,13]
         },
         "30-50": {  
             "doing": Doing["30-50"],     
@@ -143,7 +161,10 @@ BinSet = {
             "rot_bkg_used": False,
             "Mass_range": [0.1396, 0.180],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.06)
+            "var_fd_range": np.arange(0.0, 1.0001, 0.06),
+            "frac_min_bin": 1,
+            "frac_max_bin": 24,
+            "frac_remove_bin": [9,13]
         },
         "50-100": {    
             "doing": Doing["50-100"],  
@@ -158,7 +179,10 @@ BinSet = {
             "rot_bkg_used": False,
             "Mass_range": [0.1396, 0.180],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.08)
+            "var_fd_range": np.arange(0.0, 1.0001, 0.08),
+            "frac_min_bin": 1,
+            "frac_max_bin": 24,
+            "frac_remove_bin": [9,13]
         }
     }
     

@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import re
 import ctypes
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -8,9 +9,6 @@ ROOT.gROOT.SetBatch(True)
 from .DataOps import DataOps
 from .McOps import McOps
 from .FitOps import FitOps
-
-sys.path.append("../")
-import frc_test_config as config
 
 
 class FracOps(object):
@@ -37,7 +35,7 @@ class FracOps(object):
             pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
             if not pt_bin_set["doing"]:
                 continue
-            print(f"Do cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+            self.logger.info(f"Do cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
             os.makedirs(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield"), exist_ok=True)
             os.makedirs(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency"), exist_ok=True)
@@ -45,15 +43,6 @@ class FracOps(object):
 
             Tdata = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
             Tbkg = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
-            
-            # nbin = Tdata.GetAxis(2).FindBin(0.99)
-            # Tdata.GetAxis(2).SetRange(nbin,nbin)
-            # Tbkg.GetAxis(2).SetRange(nbin,nbin)
-            # nbin = TReco_prompt.GetAxis(5).FindBin(0.99)
-            # TReco_prompt.GetAxis(5).SetRange(nbin,nbin)
-            # TReco_nonprompt.GetAxis(5).SetRange(nbin,nbin)
-            # TGen_prompt.GetAxis(3).SetRange(nbin,nbin)
-            # TGen_nonprompt.GetAxis(3).SetRange(nbin,nbin)
 
             pt_min = TReco_prompt.GetAxis(1).FindBin(pt_min_edge+1e-6)
             pt_max = TReco_prompt.GetAxis(1).FindBin(pt_max_edge-1e-6)
@@ -61,6 +50,11 @@ class FracOps(object):
             TReco_nonprompt.GetAxis(1).SetRange(pt_min, pt_max)
             TGen_prompt.GetAxis(0).SetRange(pt_min, pt_max)
             TGen_nonprompt.GetAxis(0).SetRange(pt_min, pt_max)
+
+            y_min = TGen_prompt.GetAxis(2).FindBin(-0.8+1e-6)
+            y_max = TGen_prompt.GetAxis(2).FindBin(0.8-1e-6)
+            TGen_prompt.GetAxis(2).SetRange(y_min,y_max)
+            TGen_nonprompt.GetAxis(2).SetRange(y_min,y_max)
 
             bkg_max = TReco_prompt.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
             TReco_prompt.GetAxis(6).SetRange(0, bkg_max)
@@ -76,28 +70,34 @@ class FracOps(object):
 
             for icut, fd_min_edge in enumerate(fd_edges[:-1]):
 
-                print(f"Cut-variation, icut = {icut}, fd_min_edge = {fd_min_edge:.2f}")
-                try:
-                    fd_min = Tdata.GetAxis(4).FindBin(fd_min_edge+1e-6)
-                    fd_max = Tdata.GetAxis(4).FindBin(1.0-1e-6)
-                    Tdata.GetAxis(4).SetRange(fd_min, fd_max)
+                cos_max = Tdata.GetAxis(2).FindBin(1-1e-6)
+                Tdata.GetAxis(2).SetRange(0,cos_max)
+                Tbkg.GetAxis(2).SetRange(0,cos_max)
 
-                    raw_yield_file = ROOT.TFile(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield/{icut}_raw_yield_{fd_min_edge:.3f}_{fd_edges[icut+1]:.3f}.root"),"RECREATE")
+                fd_min = Tdata.GetAxis(4).FindBin(fd_min_edge+1e-6)
+                fd_max = Tdata.GetAxis(4).FindBin(1.0-1e-6)
+                Tdata.GetAxis(4).SetRange(fd_min, fd_max)
+                Tbkg.GetAxis(4).SetRange(fd_min, fd_max)
+
+                self.logger.info(f"Cut-variation, icut = {icut}, fd_min_edge = {fd_min_edge:.3f}")
+                try:
+                    
+                    raw_yield_file = ROOT.TFile(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield/{icut}_raw_yield_fd-cut_{fd_min_edge:.3f}.root"),"RECREATE")
                     hmass = Tdata.Projection(0).Clone("hmass")
                     raw_yield_file.cd()
                     hmass.Write("",ROOT.TObject.kOverwrite)
                     
-                    file = os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield/{icut}_raw_yield_{fd_min_edge:.2f}_{fd_edges[icut+1]:.2f}.root")
+                    file = os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield/{icut}_raw_yield_fd-cut_{fd_min_edge:.3f}.root")
 
                     if icut == 0 :
-                        Tbkg.GetAxis(4).SetRange(fd_min, fd_max)
+                        
                         hbkg = Tbkg.Projection(0).Clone("hbkg")
                         raw_yield_file.cd()
                         hbkg.Write("",ROOT.TObject.kOverwrite)
                         raw_yield_file.Close()
 
                         bkg_dir = "hbkg"
-                        task_name = f"{icut}_hbkg_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge:.2f}_{fd_edges[icut+1]:.2f}"
+                        task_name = f"{icut}_hbkg_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
                         fit_set = {"signal_func": ["nosignal"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
                                     "mass_range": pt_bin_set["Mass_range"],
@@ -110,7 +110,7 @@ class FracOps(object):
                         raw_yield, raw_yield_error, par_dict_bkg = self.fit_ops.fit_inv_mass(file, bkg_dir, task_name, fit_set)
 
                         data_dir = "hmass"
-                        task_name = f"{icut}_hmass_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge:.2f}_{fd_edges[icut+1]:.2f}"
+                        task_name = f"{icut}_hmass_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
 
                         fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
@@ -124,7 +124,7 @@ class FracOps(object):
                         raw_yield, raw_yield_error, pars_dict_data = self.fit_ops.fit_inv_mass(file, data_dir, task_name, fit_set)
                         pars_dict.update(pars_dict_data)
 
-                        raw_yield_file = ROOT.TFile(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield/{icut}_raw_yield_{fd_min_edge:.3f}_{fd_edges[icut+1]:.3f}.root"),"UPDATE")
+                        raw_yield_file = ROOT.TFile(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield/{icut}_raw_yield_fd-cut_{fd_min_edge:.3f}.root"),"UPDATE")
                         raw_yield_file.cd()
                         hraw_yield = ROOT.TH1F("hraw_yield","",1,pt_min_edge,pt_max_edge)
                         hraw_yield.SetBinContent(1,raw_yield)
@@ -135,7 +135,7 @@ class FracOps(object):
                     else:
                         raw_yield_file.Close()
                         data_dir = "hmass"
-                        task_name = f"{icut}_hmass_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge:.2f}_{fd_edges[icut+1]:.2f}"
+                        task_name = f"{icut}_hmass_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
 
                         fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
@@ -148,7 +148,7 @@ class FracOps(object):
                         
                         raw_yield, raw_yield_error, pars_dict_no = self.fit_ops.fit_inv_mass(file, data_dir, task_name, fit_set)
                         
-                        raw_yield_file = ROOT.TFile(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield/{icut}_raw_yield_{fd_min_edge:.3f}_{fd_edges[icut+1]:.3f}.root"),"UPDATE")
+                        raw_yield_file = ROOT.TFile(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield/{icut}_raw_yield_fd-cut_{fd_min_edge:.3f}.root"),"UPDATE")
                         raw_yield_file.cd()
                         hraw_yield = ROOT.TH1F("hraw_yield","",1,pt_min_edge,pt_max_edge)
                         hraw_yield.SetBinContent(1,raw_yield)
@@ -157,7 +157,7 @@ class FracOps(object):
                         raw_yield_file.Close()
 
                 except Exception as e:
-                    self.logger.error(f"Raw yield extraction error in {pt_min_edge:.0f}-{pt_max_edge:.0f} bin {icut} cut {fd_min_edge:.2f}-{fd_edges[icut+1]:.2f}:")
+                    self.logger.error(f"Raw yield extraction error in {pt_min_edge:.0f}-{pt_max_edge:.0f} bin {icut} cut {fd_min_edge:.3f}-{fd_edges[icut+1]:.3f}:")
                     self.logger.error("-"*50)
                     self.logger.error(e)
                     self.logger.error("-"*50)
@@ -168,7 +168,7 @@ class FracOps(object):
                     TReco_prompt.GetAxis(7).SetRange(fd_Score_min, fd_Score_max)
                     TReco_nonprompt.GetAxis(7).SetRange(fd_Score_min, fd_Score_max)
 
-                    eff_file = ROOT.TFile(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency/{icut}_eff_{fd_min_edge:.3f}_{fd_edges[icut+1]:.3f}.root"),"RECREATE")
+                    eff_file = ROOT.TFile(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency/{icut}_efficiency_fd-cut_{fd_min_edge:.3f}.root"),"RECREATE")
                     
                     heff_prompt = ROOT.TH1F("heff_prompt","",1,pt_min_edge,pt_max_edge)
                     heff_nonprompt = ROOT.TH1F("heff_nonprompt","",1,pt_min_edge,pt_max_edge)
@@ -194,12 +194,65 @@ class FracOps(object):
                     eff_file.Close()
 
                 except Exception as e:
-                    self.logger.error(f"Efficience extraction error in {pt_min_edge:.0f}-{pt_max_edge:.0f} bin {icut} cut {fd_min_edge:.2f}-{fd_edges[icut+1]:.2f}:")
+                    self.logger.error(f"Efficience extraction error in {pt_min_edge:.0f}-{pt_max_edge:.0f} bin {icut} cut fd-cut_{fd_min_edge:.3f}:")
                     self.logger.error("-"*50)
                     self.logger.error(e)
                     self.logger.error("-"*50)
        
     def get_fraction(self):
         
-        pass
+        self.logger.info("Get fraction from raw yield and efficiency...")
 
+        pt_min_set = re.compile(r"pt_min\s*=\s*\d+\n")    
+        pt_max_set = re.compile(r"pt_max\s*=\s*\d+\n")
+        start_bin_set = re.compile(r"start_bin\s*=\s*\d+\n")
+        end_bin_set = re.compile(r"end_bin\s*=\s*\d+\n")
+        remove_bin_set = re.compile(r"remove_bin\s*=\s*\[.*\]\n")
+        
+
+        pt_edges = self.config.BinSet["pt_bin_edges"]
+        for ipt , (pt_min_edge, pt_max_edge) in enumerate(zip(pt_edges[:-1], pt_edges[1:])):
+           
+            self.logger.info("Running in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+            pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
+            if not pt_bin_set["doing"]:
+                continue
+
+            cutvar_config_file = os.path.join(self.config.working_dir,"cut-variation/config_cutvar.py")
+            cutvar_config = open(cutvar_config_file,"r+")
+            config_content = cutvar_config.read()
+
+            try:
+                pt_min = pt_min_set.search(config_content).group()[:-1]
+                pt_max = pt_max_set.search(config_content).group()[:-1]
+                start_bin = start_bin_set.search(config_content).group()[:-1]
+                end_bin = end_bin_set.search(config_content).group()[:-1]
+                remove_bin = remove_bin_set.search(config_content).group()[:-1]
+            except:
+                self.logger.error(f"Error in {pt_min_edge:.0f}-{pt_max_edge:.0f} bin:")
+                self.logger.error("-"*50)
+                self.logger.error("Can not find the pt_min, pt_max, start_bin, end_bin, remove_bin in config_cutvar.py")
+                self.logger.error("-"*50)
+                continue
+
+            new_content = config_content.replace(pt_min,f"pt_min = {pt_min_edge:.0f}")
+            new_content = new_content.replace(pt_max,f"pt_max = {pt_max_edge:.0f}")
+            new_content = new_content.replace(start_bin,f"start_bin = {pt_bin_set['frac_min_bin']}")
+            new_content = new_content.replace(end_bin,f"end_bin = {pt_bin_set['frac_max_bin']}")
+            new_content = new_content.replace(remove_bin,f"remove_bin = {pt_bin_set['frac_remove_bin']}")
+
+            cutvar_config.seek(0)
+            cutvar_config.write(new_content)
+            cutvar_config.truncate()
+            cutvar_config.close()
+
+            try:
+                os.chdir(os.path.join(self.config.working_dir,"cut-variation"))
+                os.system(f"python3 compute_fraction_cutvar.py")
+                os.chdir(self.config.working_dir)
+            except Exception as e:
+                self.logger.error(f"Fraction extraction error in {pt_min_edge:.0f}-{pt_max_edge:.0f} bin:")
+                self.logger.error("-"*50)
+                self.logger.error(e)
+                self.logger.error("-"*50)
+            

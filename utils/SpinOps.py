@@ -106,6 +106,8 @@ class SpinOps(object):
                 simu_dir.cd()
                 simu_rho.Write("simu_rho", ROOT.TObject.kOverwrite) 
 
+        outfile.Close()
+
     def write_simu_rho(self):
 
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
@@ -162,6 +164,8 @@ class SpinOps(object):
                 simu_dir.cd()
                 simu_rho.Write("simu_rho", ROOT.TObject.kOverwrite) 
   
+        outfile.Close()
+
     def write_rho_plots(self, hraw_yield):
                     
         func = ROOT.TF1("frho00","[0]*((1-[1])+(3*[1]-1)*x*x)",-1,1)
@@ -174,7 +178,7 @@ class SpinOps(object):
         chi2 = func.GetChisquare()
         ndf = func.GetNDF()
         chi2ndf = chi2/ndf
-        canvas = ROOT.TCanvas("rho","rho",800,600)
+        canvas = ROOT.TCanvas("rho_fit","rho_fit",800,600)
         canvas.cd()
 
         hraw_yield.SetLineColor(ROOT.kBlack)
@@ -195,8 +199,6 @@ class SpinOps(object):
         latex.DrawLatexNDC(0.6,0.8,f"N_{{0}} = {func.GetParameter(0):.3f} #pm {func.GetParError(0):.3f}")
         latex.DrawLatexNDC(0.6,0.75,f"#rho_{{00}} = {func.GetParameter(1):.3f} #pm {func.GetParError(1):.3f}")
         latex.Draw("same")
-
-        canvas.Update()
 
         rho = [func.GetParameter(1),func.GetParError(1)]
         return canvas, rho
@@ -320,6 +322,8 @@ class SpinOps(object):
                 hrho.SetBinError(2,linearFit.GetParError(0)+linearFit.GetParError(1))
                 hrho.Write(f"rho_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
 
+        outfile.Close()
+        
     def get_sparse(self, file_list, name):
         
         sparse = []
