@@ -6,19 +6,20 @@ import numpy as np
 working_dir = "/home/mingze/work/dstar/Dstar_Spin_Alignment"
 
 Doing = {
-    "3-5":     True,
-    "5-7":     True,
-    "7-10":    True,
+    "3-5":     False,
+    "5-7":     False,
+    "7-10":    False,
     "10-20":   False,
     "20-30":   False,
-    "30-50":   False,
-    "50-100":  False
+    "30-50":   True,
+    "50-100":  True
 }
 
 Analysis = {
     "Framework": ["Helicity","Production"],
     # "Framework": ["Helicity"],
-    "Task_Name": "Full_test",
+    # "Framework": ["Production"],
+    "Task_Name": "Full_Analysis",
     "Mc_reweight": False,
     # "Cos_Bin_Bkg": False,
     # "MC_only": False,
@@ -27,9 +28,19 @@ Analysis = {
 }
 
 Target = {
-    "data": ["AnalysisResults_LHC23_apass7.root"],
-    "mc": ["AnalysisResults_LHC24g5_apass7_ptsmear-1p5_wosreDCA-1p1.root"],
-    "mc_factor": [1],
+    "data": ["AnalysisResults_LHC22o_apass7.root",
+             "AnalysisResults_LHC23_apass4_part1.root",
+             "AnalysisResults_LHC23_apass4_part2.root",
+             "AnalysisResults_LHC23_apass4_part3.root",
+             "AnalysisResults_LHC23_apass4_part4.root",
+             "AnalysisResults_LHC23_apass4_part5.root"],
+    "mc": [
+        #    "AnalysisResults_mc_LHC24g5_22apass7_ptsmear-1p5_wDCA-1p1.root",
+        #    "AnalysisResults_mc_LHC24h1_23apass4_ptsmear-1p5_wDCA-1p1.root"
+           "AnalysisResults_mc_LHC24i1_pthard_22apass7_ptsmear-1p5_wDCA-1p1.root",
+           "AnalysisResults_mc_LHC24i2_pthard_23apass4_ptsmear-1p5_wDCA-1p1.root"      
+           ],
+    "mc_factor": [1,1],
     "simulation": ["Pythia_EvtGen_pTHardBins.root"],
     "sim_factor": [1]
 }
@@ -146,7 +157,7 @@ BinSet = {
             "var_fd_range": np.arange(0.0, 1.0001, 0.05),
             "frac_min_bin": 1,
             "frac_max_bin": 24,
-            "frac_remove_bin": [9,13]
+            "frac_remove_bin": []
         },
         "30-50": {  
             "doing": Doing["30-50"],     
@@ -163,8 +174,8 @@ BinSet = {
             "Rebin": 1,
             "var_fd_range": np.arange(0.0, 1.0001, 0.06),
             "frac_min_bin": 1,
-            "frac_max_bin": 24,
-            "frac_remove_bin": [9,13]
+            "frac_max_bin": 15,
+            "frac_remove_bin": []
         },
         "50-100": {    
             "doing": Doing["50-100"],  
@@ -181,8 +192,8 @@ BinSet = {
             "Rebin": 1,
             "var_fd_range": np.arange(0.0, 1.0001, 0.08),
             "frac_min_bin": 1,
-            "frac_max_bin": 24,
-            "frac_remove_bin": [9,13]
+            "frac_max_bin": 10,
+            "frac_remove_bin": []
         }
     }
     

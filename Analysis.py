@@ -15,7 +15,9 @@ import Configurations as config
 
 outdir = out_dir = os.path.join(config.Directories["OutputDir"],config.Analysis["Task_Name"])
 os.makedirs(out_dir, exist_ok=True)
-logger = logger_config(log_path = os.path.join(outdir, f"Run_{datetime.now().strftime('%Y-%m-%d')}.log"), log_name = "Running Control")
+
+logger_file = os.path.join(outdir, f"Run_{datetime.now().strftime('%Y-%m-%d')}.log")
+logger = logger_config(log_path = logger_file, log_name = "Running Control")
 
 logger.info("")
 logger.info("-"*50)
@@ -25,25 +27,23 @@ logger.info("Making work dir and copy configuration file to it....")
 
 os.system(f"cp Configurations.py {outdir} -f")
 
-data_ops = DataOps(config,logger_config(log_path = os.path.join(outdir, "Run.log"), log_name = "Data Operation"))
-fit_ops = FitOps(config,logger_config(log_path = os.path.join(outdir, "Run.log"), log_name = "Fitting Operation"))
-spin_ops = SpinOps(config,logger_config(log_path = os.path.join(outdir, "Run.log"), log_name = "Analysing Operation"))
-frac_ops = FracOps(config,logger_config(log_path = os.path.join(outdir, "Run.log"), log_name = "Cut-Variation Operation"))
+data_ops = DataOps(config,logger_config(log_path = logger_file, log_name = "Data Operation"))
+fit_ops = FitOps(config,logger_config(log_path = logger_file, log_name = "Fitting Operation"))
+spin_ops = SpinOps(config,logger_config(log_path = logger_file, log_name = "Analysing Operation"))
+frac_ops = FracOps(config,logger_config(log_path = logger_file, log_name = "Cut-Variation Operation"))
 
+# logger.info("Get efficiency and raw-yield for cut-variation...")
+# frac_ops.get_input()
+# logger.info("Get fraction by cut-variation method...")
+# frac_ops.get_fraction()
 
+# logger.info("Writing data into analysis file...")
+# data, mc = data_ops.load_data()
+# data_ops.write_data(data)
+# data_ops.write_mc(mc)
 
-logger.info("Get efficiency and raw-yield for cut-variation...")
-frac_ops.get_input()
-logger.info("Get fraction by cut-variation method...")
-frac_ops.get_fraction()
-
-logger.info("Writing data into analysis file...")
-data, mc = data_ops.load_data()
-data_ops.write_data(data)
-data_ops.write_mc(mc)
-
-logger.info("Fitting raw-yield...")
-fit_ops.get_raw_yield()
+# logger.info("Fitting raw-yield...")
+# fit_ops.get_raw_yield()
 
 logger.info("Get corrected yield...")
 data_ops.read_frac()

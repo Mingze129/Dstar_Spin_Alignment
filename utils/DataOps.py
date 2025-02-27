@@ -29,7 +29,7 @@ class DataOps(object):
         M_file_list = self.config.Target["mc"]
         self.logger.info(f"target data files: {D_file_list}")
         self.logger.info(f"target mc files: {M_file_list}")
-        self.logger.info("Finding data in directory: ", self.config.Directories["InputDir"])
+        self.logger.info(f"Finding data in directory:  {self.config.Directories['InputDir']}")
 
         if not os.path.exists(self.config.Directories["InputDir"]):
             self.logger.error("Input directory does not exist.")
@@ -469,15 +469,16 @@ class DataOps(object):
         for file_dir in file_list:
             file = ROOT.TFile(file_dir, "READ")
             sparse.append(file.Get(name))
-
+            file.Close()
+      
         for i in range(1, len(sparse)):
             try:
                 sparse[0].Add(sparse[i])
-                print(sparse[i].GetName())
+                self.logger.info(f"Merging {i}_{sparse[i].GetName()}")
                 sparse[i].GetAxis(0).SetRange(0,0)
                 sparse[i].Delete()
             except:
-                print(f"Error when mergeing {name}")
+                self.logger.error(f"Error when mergeing {name}")
                 sys.exit(1)
             
         return sparse[0]

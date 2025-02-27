@@ -7,10 +7,10 @@ gen_set = Configurations
 bin_set = Configurations.BinSet["pt_bin_set"]
 task_name = Configurations.Analysis["Task_Name"]
 
-pt_min = 7
-pt_max = 10
-start_bin = 3
-end_bin = 24
+pt_min = 50
+pt_max = 100
+start_bin = 1
+end_bin = 10
 remove_bin = []
 
 fd_edges = bin_set[f"{pt_min}-{pt_max}"]["var_fd_range"]
