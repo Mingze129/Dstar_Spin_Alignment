@@ -324,6 +324,67 @@ class SpinOps(object):
 
         outfile.Close()
         
+    def plot_rho(self):
+
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
+        outfile = ROOT.TFile(outfile_name, "UPDATE")
+        pt_edges = self.config.BinSet["pt_bin_edges"]  
+        frame_list = self.config.Analysis["Framework"]
+
+        for frame in frame_list:
+
+            self.logger.info(f"Plotting rho vs pt in {frame} frame")
+            type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
+            type_dir.cd()
+
+            hprompt_rho = ROOT.TH1F("hprompt_rho","hprompt_rho;fd_score;#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
+            hnonprompt_rho = ROOT.TH1F("hnonprompt_rho","hnonprompt_rho;fd_score;#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
+
+            for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+
+                pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
+                
+                if not pt_bin_set["doing"]:
+                    continue
+                pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
+
+                pt_rho = pt_bin_dir.Get(f"rho_{pt_min_edge:.0f}_{pt_max_edge:.0f}")
+                hprompt_rho.SetBinContent(hprompt_rho.FindBin(pt_min_edge+1e-6), pt_rho.GetBinContent(1))
+                hprompt_rho.SetBinError(hprompt_rho.FindBin(pt_min_edge+1e-6), pt_rho.GetBinError(1))
+                hnonprompt_rho.SetBinContent(hnonprompt_rho.FindBin(pt_min_edge+1e-6), pt_rho.GetBinContent(2))
+                hnonprompt_rho.SetBinError(hnonprompt_rho.FindBin(pt_min_edge+1e-6), pt_rho.GetBinError(2))
+
+            canves = ROOT.TCanvas(f"rho_{frame}",f"rho_{frame}",800,600)
+
+            hnonprompt_rho.SetMarkerStyle(20)
+            hnonprompt_rho.SetMarkerSize(0.5)
+            hnonprompt_rho.SetMarkerColor(ROOT.kRed+1)
+            hnonprompt_rho.SetLineWidth(2)
+            hnonprompt_rho.SetLineColor(ROOT.kRed+1)
+            hnonprompt_rho.GetYaxis().SetRangeUser(0.1,0.7)
+            hnonprompt_rho.Draw("P")
+
+            hprompt_rho.SetMarkerStyle(20)
+            hprompt_rho.SetMarkerSize(0.5)
+            hprompt_rho.SetMarkerColor(ROOT.kBlue+1)
+            hprompt_rho.SetLineWidth(2)
+            hprompt_rho.SetLineColor(ROOT.kBlue+1)
+            hprompt_rho.Draw("PSAME")
+
+            line = ROOT.TLine(hprompt_rho.GetXaxis().GetXmin(),1/3,hprompt_rho.GetXaxis().GetXmax(),1/3)
+            line.SetLineColor(ROOT.kBlack)
+            line.SetLineStyle(2)
+            line.SetLineWidth(2)
+            line.Draw("SAME")
+
+            leg = ROOT.TLegend(0.6, 0.2, 0.85, 0.3)
+            leg.AddEntry(hprompt_rho, "prompt D*^{+}", "p")
+            leg.AddEntry(hnonprompt_rho, "non-prompt D*^{+}", "p")
+            leg.SetBorderSize(0)
+            leg.Draw("same")
+
+            canves.Write(f"rho{frame}",ROOT.TObject.kOverwrite)
+ 
     def get_sparse(self, file_list, name):
         
         sparse = []

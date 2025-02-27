@@ -6,11 +6,11 @@ import numpy as np
 working_dir = "/home/mingze/work/dstar/Dstar_Spin_Alignment"
 
 Doing = {
-    "3-5":     False,
-    "5-7":     False,
-    "7-10":    False,
-    "10-20":   False,
-    "20-30":   False,
+    "3-5":     True,
+    "5-7":     True,
+    "7-10":    True,
+    "10-20":   True,
+    "20-30":   True,
     "30-50":   True,
     "50-100":  True
 }
