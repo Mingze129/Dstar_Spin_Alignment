@@ -275,16 +275,15 @@ class SpinOps(object):
                 linearFit = ROOT.TF1("linearFit", "[0] + [1]*x", -0.1, 1)
                 TGraph.Fit(linearFit)
 
-                ConInt = ROOT.TH1D("ConInt","ConInt",1000,-0.1,1)
-                ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt, 0.68)
-            
-                TGraph.GetXaxis().SetRangeUser(0,1)
-                ConInt.SetLineColor(ROOT.kAzure+4)
-                ConInt.SetFillColorAlpha(ROOT.kAzure+4,0.3)
-                ConInt.SetFillStyle(1001)
-                ConInt.SetMarkerStyle(0)
-                ConInt.DrawCopy("SAME")
-                ConInt.Write(f"ConInt_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
+                ConInt3 = ROOT.TH1D("ConInt3","ConInt3",1000,-0.1,1)
+                ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt3, 0.99)
+
+                ConInt3.SetLineColor(ROOT.kAzure)
+                ConInt3.SetFillColorAlpha(ROOT.kAzure,0.3)
+                ConInt3.SetFillStyle(1001)
+                ConInt3.SetMarkerStyle(0)
+                ConInt3.DrawCopy("SAME")
+                ConInt3.Write(f"ConInt3_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
 
                 ConInt2 = ROOT.TH1D("ConInt2","ConInt2",1000,-0.1,1)
                 ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt2, 0.95)
@@ -296,15 +295,16 @@ class SpinOps(object):
                 ConInt2.DrawCopy("SAME")
                 ConInt2.Write(f"ConInt2_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
 
-                ConInt3 = ROOT.TH1D("ConInt3","ConInt3",1000,-0.1,1)
-                ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt3, 0.99)
-
-                ConInt3.SetLineColor(ROOT.kAzure+4)
-                ConInt3.SetFillColorAlpha(ROOT.kAzure+4,0.3)
-                ConInt3.SetFillStyle(1001)
-                ConInt3.SetMarkerStyle(0)
-                ConInt3.DrawCopy("SAME")
-                ConInt3.Write(f"ConInt3_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
+                ConInt = ROOT.TH1D("ConInt","ConInt",1000,-0.1,1)
+                ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt, 0.68)
+            
+                TGraph.GetXaxis().SetRangeUser(0,1)
+                ConInt.SetLineColor(ROOT.kAzure+8)
+                ConInt.SetFillColorAlpha(ROOT.kAzure+8,0.3)
+                ConInt.SetFillStyle(1001)
+                ConInt.SetMarkerStyle(0)
+                ConInt.DrawCopy("SAME")
+                ConInt.Write(f"ConInt_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
 
                 TGraph.Draw("EPSAME")
                 TGraph.Write(f"fit_rhovsfrac",ROOT.TObject.kOverwrite)

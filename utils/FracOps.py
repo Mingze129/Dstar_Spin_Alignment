@@ -24,41 +24,22 @@ class FracOps(object):
         self.logger = logger
         self.logger.info("Fracion Opreator Init...")
 
-    def get_input(self):
+    def get_yield_input(self):
         
         pt_edges = self.config.BinSet["pt_bin_edges"]
 
-        TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, "Helicity")
- 
         for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
 
             pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
             if not pt_bin_set["doing"]:
                 continue
-            self.logger.info(f"Do cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+            self.logger.info(f"Get raw yield for cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
             os.makedirs(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield"), exist_ok=True)
-            os.makedirs(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency"), exist_ok=True)
             os.makedirs(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction"), exist_ok=True)
 
             Tdata = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
             Tbkg = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
-
-            pt_min = TReco_prompt.GetAxis(1).FindBin(pt_min_edge+1e-6)
-            pt_max = TReco_prompt.GetAxis(1).FindBin(pt_max_edge-1e-6)
-            TReco_prompt.GetAxis(1).SetRange(pt_min, pt_max)
-            TReco_nonprompt.GetAxis(1).SetRange(pt_min, pt_max)
-            TGen_prompt.GetAxis(0).SetRange(pt_min, pt_max)
-            TGen_nonprompt.GetAxis(0).SetRange(pt_min, pt_max)
-
-            y_min = TGen_prompt.GetAxis(2).FindBin(-0.8+1e-6)
-            y_max = TGen_prompt.GetAxis(2).FindBin(0.8-1e-6)
-            TGen_prompt.GetAxis(2).SetRange(y_min,y_max)
-            TGen_nonprompt.GetAxis(2).SetRange(y_min,y_max)
-
-            bkg_max = TReco_prompt.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
-            TReco_prompt.GetAxis(6).SetRange(0, bkg_max)
-            TReco_nonprompt.GetAxis(6).SetRange(0, bkg_max)
 
             bkg_max = Tdata.GetAxis(3).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
             Tdata.GetAxis(3).SetRange(0, bkg_max)
@@ -103,6 +84,7 @@ class FracOps(object):
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
                                     "bin_counting": [True, 0.1396, 0.165],
+                                    "init_pars":[False],
                                     "fix_pars":[False],
                                     "out_dir": os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
@@ -117,7 +99,8 @@ class FracOps(object):
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
                                     "bin_counting": [True, 0.1396, 0.165],
-                                    "fix_pars":[True, par_dict_bkg,"power", "c1", "c2", "c3"],
+                                    "init_pars":[False,par_dict_bkg],
+                                    "fix_pars":[True, "power", "c1", "c2", "c3"],
                                     "out_dir": os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
                         
@@ -142,7 +125,8 @@ class FracOps(object):
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
                                     "bin_counting": [True, 0.1396, 0.165],
-                                    "fix_pars":[True, pars_dict,"nl","nr","alphal","alphar"],
+                                    "init_pars":[True,pars_dict],
+                                    "fix_pars":[True, "nl","nr","alphal","alphar","sigma"],
                                     "out_dir": os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
                         
@@ -162,6 +146,44 @@ class FracOps(object):
                     self.logger.error(e)
                     self.logger.error("-"*50)
 
+    def get_eff_input(self):
+        
+        pt_edges = self.config.BinSet["pt_bin_edges"]
+
+        TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, "Helicity")
+ 
+        for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+
+            pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
+            if not pt_bin_set["doing"]:
+                continue
+            self.logger.info(f"Get efficiency for cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+
+            os.makedirs(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency"), exist_ok=True)
+            os.makedirs(os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction"), exist_ok=True)
+
+            pt_min = TReco_prompt.GetAxis(1).FindBin(pt_min_edge+1e-6)
+            pt_max = TReco_prompt.GetAxis(1).FindBin(pt_max_edge-1e-6)
+            TReco_prompt.GetAxis(1).SetRange(pt_min, pt_max)
+            TReco_nonprompt.GetAxis(1).SetRange(pt_min, pt_max)
+            TGen_prompt.GetAxis(0).SetRange(pt_min, pt_max)
+            TGen_nonprompt.GetAxis(0).SetRange(pt_min, pt_max)
+
+            y_min = TGen_prompt.GetAxis(2).FindBin(-0.8+1e-6)
+            y_max = TGen_prompt.GetAxis(2).FindBin(0.8-1e-6)
+            TGen_prompt.GetAxis(2).SetRange(y_min,y_max)
+            TGen_nonprompt.GetAxis(2).SetRange(y_min,y_max)
+
+            bkg_max = TReco_prompt.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
+            TReco_prompt.GetAxis(6).SetRange(0, bkg_max)
+            TReco_nonprompt.GetAxis(6).SetRange(0, bkg_max)
+
+            fd_edges = pt_bin_set["var_fd_range"]
+
+            for icut, fd_min_edge in enumerate(fd_edges[:-1]):
+
+                self.logger.info(f"Cut-variation, icut = {icut}, fd_min_edge = {fd_min_edge:.3f}")
+               
                 try:
                     fd_Score_min = TReco_prompt.GetAxis(7).FindBin(fd_min_edge+1e-6)
                     fd_Score_max = TReco_prompt.GetAxis(7).FindBin(1.0-1e-6)
@@ -199,6 +221,7 @@ class FracOps(object):
                     self.logger.error(e)
                     self.logger.error("-"*50)
        
+    
     def get_fraction(self):
         
         self.logger.info("Get fraction from raw yield and efficiency...")

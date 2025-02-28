@@ -51,11 +51,11 @@ class FitOps(object):
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
-
-                self.logger.info(f"     Fitting raw-yield for pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}...")
+  
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
                     continue
+                self.logger.info(f"     Fitting raw-yield for pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}...")
 
                 cos_edges = pt_bin_set["cos_bin_edges"]
                 fd_edges = pt_bin_set["fd_edges"]
@@ -83,6 +83,7 @@ class FitOps(object):
                                 "mass_range": pt_bin_set["Mass_range"],
                                 "rebin": pt_bin_set["Rebin"],
                                 "bin_counting": [True, 0.1396, 0.165],
+                                "init_pars": [False],
                                 "fix_pars":[False],
                                 "out_dir": self.out_dir
                             }
@@ -96,7 +97,8 @@ class FitOps(object):
                                 "mass_range": pt_bin_set["Mass_range"],
                                 "rebin": pt_bin_set["Rebin"],
                                 "bin_counting": [True, 0.1396, 0.165],
-                                "fix_pars":[True, par_dict_bkg,"power", "c1", "c2", "c3"],
+                                "init_pars": [False,par_dict_bkg],
+                                "fix_pars":[True,"power", "c1", "c2", "c3"],
                                 "out_dir": self.out_dir
                             }
                     
@@ -117,7 +119,8 @@ class FitOps(object):
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
                                     "bin_counting": [True, 0.1396, 0.165],
-                                    "fix_pars":[True, par_dict_data,"nl","nr","alphal","alphar"],
+                                    "init_pars": [True,par_dict_data],
+                                    "fix_pars":pt_bin_set["fix_pars"],
                                     "out_dir": self.out_dir
                                 }
                         raw_yield , raw_yield_error, par_dict_cos = self.fit_inv_mass(outfile_name, data_dir,  fit_task, fit_set)
@@ -147,20 +150,29 @@ class FitOps(object):
         mass_init = (Particle.from_pdgid(413).mass - Particle.from_pdgid(421).mass)*1.e-3
         fitter.set_particle_mass(0, mass=mass_init, limits=[mass_init*0.95, mass_init*1.05])
 
-        for par in self.func_pars[fit_set["bkg_func"][0]]:
-            if par in self.func_pars["Init_value"]:
-                fitter.set_background_initpar(0,par,self.func_pars["Init_value"][par])
+        if fit_set["init_pars"][0]:
+            for par in self.func_pars[fit_set["bkg_func"][0]]:
+                if par in self.func_pars["Init_value"]:
+                    fitter.set_background_initpar(0,par,fit_set["init_pars"][1][par])
 
-        for par in self.func_pars[fit_set["signal_func"][0]]:
-             if par in self.func_pars["Init_value"]:
-                fitter.set_signal_initpar(0,par,self.func_pars["Init_value"][par])
+            for par in self.func_pars[fit_set["signal_func"][0]]:
+                if par in self.func_pars["Init_value"]:
+                    fitter.set_signal_initpar(0,par,fit_set["init_pars"][1][par])
+        else:
+            for par in self.func_pars[fit_set["bkg_func"][0]]:
+                if par in self.func_pars["Init_value"]:
+                    fitter.set_background_initpar(0,par,self.func_pars["Init_value"][par])
+
+            for par in self.func_pars[fit_set["signal_func"][0]]:
+                if par in self.func_pars["Init_value"]:
+                    fitter.set_signal_initpar(0,par,self.func_pars["Init_value"][par])
 
         if fit_set["fix_pars"][0]:
-            for par in fit_set["fix_pars"][2:]:
+            for par in fit_set["fix_pars"][1:]:
                 if par in self.func_pars[fit_set["bkg_func"][0]]:
-                    fitter.set_background_initpar(0, par, fit_set["fix_pars"][1][par],fix = True)
+                    fitter.set_background_initpar(0, par, fit_set["init_pars"][1][par],fix = True)
                 elif par in self.func_pars[fit_set["signal_func"][0]]:
-                    fitter.set_signal_initpar(0, par, fit_set["fix_pars"][1][par],fix = True)
+                    fitter.set_signal_initpar(0, par, fit_set["init_pars"][1][par],fix = True)
 
         fit_result = fitter.mass_zfit()
 

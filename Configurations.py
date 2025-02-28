@@ -6,13 +6,13 @@ import numpy as np
 working_dir = "/home/mingze/work/dstar/Dstar_Spin_Alignment"
 
 Doing = {
-    "3-5":     True,
-    "5-7":     True,
+    "3-5":     False,
+    "5-7":     False,
     "7-10":    True,
-    "10-20":   True,
-    "20-30":   True,
-    "30-50":   True,
-    "50-100":  True
+    "10-20":   False,
+    "20-30":   False,
+    "30-50":   False,
+    "50-100":  False
 }
 
 Analysis = {
@@ -35,10 +35,10 @@ Target = {
              "AnalysisResults_LHC23_apass4_part4.root",
              "AnalysisResults_LHC23_apass4_part5.root"],
     "mc": [
-        #    "AnalysisResults_mc_LHC24g5_22apass7_ptsmear-1p5_wDCA-1p1.root",
-        #    "AnalysisResults_mc_LHC24h1_23apass4_ptsmear-1p5_wDCA-1p1.root"
-           "AnalysisResults_mc_LHC24i1_pthard_22apass7_ptsmear-1p5_wDCA-1p1.root",
-           "AnalysisResults_mc_LHC24i2_pthard_23apass4_ptsmear-1p5_wDCA-1p1.root"      
+           "AnalysisResults_mc_LHC24g5_22apass7_ptsmear-1p5_wDCA-1p1.root",
+           "AnalysisResults_mc_LHC24h1_23apass4_ptsmear-1p5_wDCA-1p1.root"
+        #    "AnalysisResults_mc_LHC24i1_pthard_22apass7_ptsmear-1p5_wDCA-1p1.root",
+        #    "AnalysisResults_mc_LHC24i2_pthard_23apass4_ptsmear-1p5_wDCA-1p1.root"      
            ],
     "mc_factor": [1,1],
     "simulation": ["Pythia_EvtGen_pTHardBins.root"],
@@ -78,13 +78,12 @@ BinSet = {
             "Bkg_cut": 0.1,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
-            "fix_sigma": False,
-            "rot_bkg_used": False,
+            "fix_pars": [True,"nl","nr","alphal","alphar"],
             "Mass_range": [0.1396, 0.160],
             "Rebin": 1,
             "var_fd_range": np.arange(0.0, 1.0001, 0.025),
-            "frac_min_bin": 3,
-            "frac_max_bin": 35,
+            "frac_min_bin": 6,
+            "frac_max_bin": 38,
             "frac_remove_bin": []
         },
         "5-7": {   
@@ -96,13 +95,12 @@ BinSet = {
             "Bkg_cut": 0.2,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
-            "fix_sigma": False,
-            "rot_bkg_used": False,
+            "fix_pars": [True,"nl","nr","alphal","alphar"],
             "Mass_range": [0.1396, 0.160],
             "Rebin": 1,
             "var_fd_range": np.arange(0.0, 1.0001, 0.04),
             "frac_min_bin": 3,
-            "frac_max_bin": 25,
+            "frac_max_bin": 23,
             "frac_remove_bin": []
         },
         "7-10": {      
@@ -114,13 +112,12 @@ BinSet = {
             "Bkg_cut": 0.2,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
-            "fix_sigma": False,
-            "rot_bkg_used": False,
+            "fix_pars": [True,"nl","nr","alphal","alphar"],
             "Mass_range": [0.1396, 0.170],
             "Rebin": 1,
             "var_fd_range": np.arange(0.0, 1.0001, 0.04),
             "frac_min_bin": 3,
-            "frac_max_bin": 24,
+            "frac_max_bin": 20,
             "frac_remove_bin": []
         },
         "10-20": {  
@@ -132,14 +129,13 @@ BinSet = {
             "Bkg_cut": 0.4,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
-            "fix_sigma": False,
-            "rot_bkg_used": False,
+            "fix_pars": [True,"nl","nr","alphal","alphar"],
             "Mass_range": [0.1396, 0.170],
             "Rebin": 1,
             "var_fd_range": np.arange(0.0, 1.0001, 0.05),
-            "frac_min_bin": 1,
-            "frac_max_bin": 24,
-            "frac_remove_bin": [9,13]
+            "frac_min_bin": 3,
+            "frac_max_bin": 16,
+            "frac_remove_bin": []
         },
         "20-30": {   
             "doing": Doing["20-30"],   
@@ -150,13 +146,12 @@ BinSet = {
             "Bkg_cut": 0.4,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
-            "fix_sigma": False,
-            "rot_bkg_used": False,
+            "fix_pars": [True,"nl","nr","alphal","alphar","power","c1","c2","c3"],
             "Mass_range": [0.1396, 0.175],
             "Rebin": 1,
             "var_fd_range": np.arange(0.0, 1.0001, 0.05),
             "frac_min_bin": 1,
-            "frac_max_bin": 24,
+            "frac_max_bin": 12,
             "frac_remove_bin": []
         },
         "30-50": {  
@@ -167,14 +162,13 @@ BinSet = {
             "fd_edges": [0.0,1.0],
             "Bkg_cut": 0.4,
             "Signal_func": ["doublecb"],
-            "Bkg_func": ["expopowext"],
-            "fix_sigma": False,
-            "rot_bkg_used": False,
+            "Bkg_func": ["expopow"],
+            "fix_pars": [True,"nl","nr","alphal","alphar","power","c1","c2","c3"],
             "Mass_range": [0.1396, 0.180],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.06),
-            "frac_min_bin": 1,
-            "frac_max_bin": 15,
+            "var_fd_range": [0.02,0.04,0.06,0.08,0.10,0.12,0.14,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0],
+            "frac_min_bin": 0,
+            "frac_max_bin": 11,
             "frac_remove_bin": []
         },
         "50-100": {    
@@ -185,14 +179,13 @@ BinSet = {
             "fd_edges": [0.0,1.0],
             "Bkg_cut": 0.4,
             "Signal_func": ["doublecb"],
-            "Bkg_func": ["expopowext"],
-            "fix_sigma": False,
-            "rot_bkg_used": False,
+            "Bkg_func": ["expopow"],
+            "fix_pars": [True,"nl","nr","alphal","alphar","power","c1","c2","c3"],
             "Mass_range": [0.1396, 0.180],
             "Rebin": 1,
-            "var_fd_range": np.arange(0.0, 1.0001, 0.08),
-            "frac_min_bin": 1,
-            "frac_max_bin": 10,
+            "var_fd_range": [0.02,0.04,0.06,0.08,0.10,0.12,0.14,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0],
+            "frac_min_bin": 0,
+            "frac_max_bin": 12,
             "frac_remove_bin": []
         }
     }
