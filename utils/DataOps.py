@@ -76,7 +76,7 @@ class DataOps(object):
     def write_data(self, data):
 
         pt_edges = self.config.BinSet["pt_bin_edges"]  
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
 
         outfile = ROOT.TFile(outfile_name, "UPDATE")
         frame_list = self.config.Analysis["Framework"]
@@ -98,6 +98,14 @@ class DataOps(object):
                 
                 Tdata = self.get_sparse(data, f"h{frame}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
                 Tbkg = self.get_sparse(data,f"h{frame}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
+                
+                Tdata.GetAxis(5).SetRange(self.config.Analysis["Min_eta_track"],100)
+                Tbkg.GetAxis(5).SetRange(self.config.Analysis["Min_eta_track"],100)
+                Tdata.GetAxis(6).SetRange(self.config.Analysis["Min_cls_ITS"],100)
+                Tbkg.GetAxis(6).SetRange(self.config.Analysis["Min_cls_ITS"],100)
+                Tdata.GetAxis(7).SetRange(self.config.Analysis["Min_cls_TPC"],100)
+                Tbkg.GetAxis(7).SetRange(self.config.Analysis["Min_cls_TPC"],100)
+
                 pt_bin_dir.cd()
 
                 bkg_max = Tdata.GetAxis(3).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
@@ -170,7 +178,7 @@ class DataOps(object):
     def write_mc(self,mc):
 
         pt_edges = self.config.BinSet["pt_bin_edges"]  
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
 
         outfile = ROOT.TFile(outfile_name, "UPDATE")
         frame_list = self.config.Analysis["Framework"]
@@ -342,7 +350,7 @@ class DataOps(object):
     def read_frac(self):
         
         pt_edges = self.config.BinSet["pt_bin_edges"]  
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
 
         outfile = ROOT.TFile(outfile_name, "UPDATE")
         frame_list = self.config.Analysis["Framework"]
@@ -377,7 +385,7 @@ class DataOps(object):
 
                 hfrac_np_fd = heff_prompt_fd.Clone("hfrac_np_fd")
 
-                frac_file_dir = os.path.join(self.out_dir,f"Cut-variation/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction","CutVar_"+self.config.Analysis["Task_Name"]+".root")
+                frac_file_dir = os.path.join(self.out_dir,f"Cut-variation/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/{self.config.Analysis['Ana_name']}/fraction","CutVar_"+self.config.Analysis['Ana_name']+".root")
                 frac_file = ROOT.TFile(frac_file_dir,"READ")
                 corr_yield_prompt = frac_file.Get("hCorrYieldsPrompt")
                 corr_yield_nonprompt = frac_file.Get("hCorrYieldsNonPrompt")
@@ -452,11 +460,11 @@ class DataOps(object):
                 pt_bin_max = sparse.GetAxis(1).FindBin(pt_max-1e-6)
                 sparse.GetAxis(1).SetRange(pt_bin_min, pt_bin_max)
                 sparse.GetAxis(11).SetRange(1, 1)
-                sparse_signal_reduced = sparse.Projection(5, axis_to_keep)
+                sparse_signal_reduced = sparse.Projection(len(axis_to_keep), axis_to_keep)
                 sparse_signal_reduced.SetName(f"h{frame}_pt_{pt_min:.0f}_{pt_max:.0f}_data")
                 sparse_signal_reduced.Write()
                 sparse.GetAxis(11).SetRange(2, 2)
-                sparse_bkg_reduced = sparse.Projection(5, axis_to_keep)
+                sparse_bkg_reduced = sparse.Projection(len(axis_to_keep), axis_to_keep)
                 sparse_bkg_reduced.SetName(f"h{frame}_pt_{pt_min:.0f}_{pt_max:.0f}_rotbkg")
                 sparse_bkg_reduced.Write()
 
@@ -475,7 +483,6 @@ class DataOps(object):
             try:
                 sparse[0].Add(sparse[i])
                 self.logger.info(f"Merging {i}_{sparse[i].GetName()}")
-                sparse[i].GetAxis(0).SetRange(0,0)
                 sparse[i].Delete()
             except:
                 self.logger.error(f"Error when mergeing {name}")
@@ -587,3 +594,96 @@ class DataOps(object):
         # print("total yield = ",  hcorr_yield.Integral())
 
         return hEff_total, hcorr_yield
+    
+    def write_mc_pars(self,mc):
+
+        pt_edges = self.config.BinSet["pt_bin_edges"] 
+        os.makedirs(os.path.join(os.path.join(os.getcwd(),"Output","Mc_pars"), "Analysis-root"), exist_ok=True) 
+        outfile_name = os.path.join(os.path.join(os.getcwd(),"Output","Mc_pars"), "Analysis-root", "Mc_pars.root")
+
+        outfile = ROOT.TFile(outfile_name, "UPDATE")
+        frame_list = self.config.Analysis["Framework"]
+
+        for frame in frame_list:
+
+            self.logger.info(f"Writing MC inv-mass of {frame} framework...")
+            Reco_prompt, Reco_nonprompt, Gen_prompt, Gen_nonprompt = self.mc_ops.get_mc_sparse(mc,frame)
+
+            Reco_total = Reco_prompt.Clone("Reco_total")
+            Reco_total.Add(Reco_nonprompt)
+
+            type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
+            type_dir.cd()
+
+            for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+
+                pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
+                if not pt_bin_set["doing"]:
+                    continue
+                self.logger.info(f"    Working in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+
+                pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
+                pt_bin_dir.cd()
+
+                pt_min = Reco_prompt.GetAxis(1).FindBin(pt_min_edge+1e-6)
+                pt_max = Reco_prompt.GetAxis(1).FindBin(pt_max_edge-1e-6)
+                Reco_prompt.GetAxis(1).SetRange(pt_min,pt_max)
+                Reco_nonprompt.GetAxis(1).SetRange(pt_min,pt_max)
+                Reco_total.GetAxis(1).SetRange(pt_min,pt_max)
+
+                bkg_max = Reco_prompt.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
+                Reco_prompt.GetAxis(6).SetRange(0, bkg_max)
+                Reco_nonprompt.GetAxis(6).SetRange(0, bkg_max)
+                Reco_total.GetAxis(6).SetRange(0, bkg_max)
+                
+                cos_edges = pt_bin_set["cos_bin_edges"]
+                fd_edges = pt_bin_set["fd_edges"]
+                if len(fd_edges) > 2:
+                    fd_min_edges = fd_edges[:-1]+[0.0]
+                    fd_max_edges = fd_edges[1:]+[1.0]
+                else:
+                    fd_min_edges = fd_edges[:-1]
+                    fd_max_edges = fd_edges[1:]
+
+                for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
+
+                    fd_dir = pt_bin_dir.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
+                    fd_dir.cd()
+
+                    cos_max = Reco_prompt.GetAxis(5).FindBin(1-1e-6)
+                    Reco_prompt.GetAxis(5).SetRange(0,cos_max)
+                    Reco_nonprompt.GetAxis(5).SetRange(0,cos_max)
+                    Reco_total.GetAxis(5).SetRange(0,cos_max)
+
+                    fd_min = Reco_prompt.GetAxis(7).FindBin(fd_min_edge+1e-6)
+                    fd_max = Reco_prompt.GetAxis(7).FindBin(fd_max_edge-1e-6)
+                    Reco_prompt.GetAxis(7).SetRange(fd_min,fd_max)
+                    Reco_nonprompt.GetAxis(7).SetRange(fd_min,fd_max)
+                    Reco_total.GetAxis(7).SetRange(fd_min,fd_max)
+
+                    hmass_prompt = Reco_prompt.Projection(0)
+                    hmass_prompt.Write(f"hprompt_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_prompt",ROOT.TObject.kOverwrite)
+                    hmass_nonprompt = Reco_nonprompt.Projection(0)
+                    hmass_nonprompt.Write(f"hnonprompt_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_nonprompt",ROOT.TObject.kOverwrite)
+                    hmass_total = Reco_total.Projection(0)
+                    hmass_total.Write(f"htotal_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_total",ROOT.TObject.kOverwrite)
+                
+                    for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
+
+                        cos_dir = fd_dir.mkdir(f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", "", ROOT.kTRUE)
+                        cos_dir.cd()
+
+                        cos_min = Reco_prompt.GetAxis(5).FindBin(cos_min_edge+1e-6)
+                        cos_max = Reco_prompt.GetAxis(5).FindBin(cos_max_edge-1e-6)
+                        Reco_prompt.GetAxis(5).SetRange(cos_min,cos_max)
+                        Reco_nonprompt.GetAxis(5).SetRange(cos_min,cos_max)
+                        Reco_total.GetAxis(5).SetRange(cos_min,cos_max)
+
+                        hmass_prompt = Reco_prompt.Projection(0)
+                        hmass_prompt.Write(f"hprompt_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}_prompt",ROOT.TObject.kOverwrite)
+                        hmass_nonprompt = Reco_nonprompt.Projection(0)
+                        hmass_nonprompt.Write(f"hnonprompt_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}_nonprompt",ROOT.TObject.kOverwrite)
+                        hmass_total = Reco_total.Projection(0)
+                        hmass_total.Write(f"htotal_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}_total",ROOT.TObject.kOverwrite)
+
+        outfile.Close()

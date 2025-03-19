@@ -32,6 +32,14 @@ class McOps(object):
             Reco_nonprompt = infile.Get(f"task-polarisation-charm-hadrons/hRecoNonPrompt{frame}")
             Gen_prompt = infile.Get(f"task-polarisation-charm-hadrons/hGenPrompt{frame}")
             Gen_nonprompt = infile.Get(f"task-polarisation-charm-hadrons/hGenNonPrompt{frame}")
+
+            Reco_prompt.GetAxis(8).SetRange(self.config.Analysis["Min_eta_track"],100)
+            Reco_nonprompt.GetAxis(8).SetRange(self.config.Analysis["Min_eta_track"],100)
+            Reco_prompt.GetAxis(9).SetRange(self.config.Analysis["Min_cls_ITS"],100)
+            Reco_nonprompt.GetAxis(9).SetRange(self.config.Analysis["Min_cls_ITS"],100)
+            Reco_prompt.GetAxis(10).SetRange(self.config.Analysis["Min_cls_TPC"],100)
+            Reco_nonprompt.GetAxis(10).SetRange(self.config.Analysis["Min_cls_TPC"],100)
+            
             if self.config.Analysis["Mc_reweight"] == False:
                 Reco_prompt_mc.append(Reco_prompt)
                 Reco_nonprompt_mc.append(Reco_nonprompt)

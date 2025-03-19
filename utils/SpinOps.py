@@ -13,7 +13,7 @@ class SpinOps(object):
         self.logger = logger
     def get_rho(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
@@ -110,7 +110,7 @@ class SpinOps(object):
 
     def write_simu_rho(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
@@ -205,7 +205,7 @@ class SpinOps(object):
 
     def extro_rho(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
@@ -326,7 +326,7 @@ class SpinOps(object):
         
     def plot_rho(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", "AnalysisSpinAlignment.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
