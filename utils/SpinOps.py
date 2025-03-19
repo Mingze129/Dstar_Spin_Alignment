@@ -29,8 +29,8 @@ class SpinOps(object):
 
                 fd_edges = pt_bin_set["fd_edges"]
                 if len(fd_edges) > 2:
-                    fd_min_edges = fd_edges[:-1]+[0.0]
-                    fd_max_edges = fd_edges[1:]+[1.0]
+                    fd_min_edges = [0.0]+fd_edges[:-1]
+                    fd_max_edges = [1.0]+fd_edges[1:]
                 else:
                     fd_min_edges = fd_edges[:-1]
                     fd_max_edges = fd_edges[1:]
