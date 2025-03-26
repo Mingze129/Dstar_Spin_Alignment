@@ -35,8 +35,8 @@ class FracOps(object):
                 continue
             self.logger.info(f"Get raw yield for cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
-            raw_dir = os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/{self.config.Analysis['Ana_name']}/raw_yield")
-            frac_dir = os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/{self.config.Analysis['Ana_name']}/fraction")
+            raw_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield")
+            frac_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction")
             os.makedirs(raw_dir, exist_ok=True)
             os.makedirs(frac_dir, exist_ok=True)
 
@@ -86,20 +86,26 @@ class FracOps(object):
                         hbkg.Write("",ROOT.TObject.kOverwrite)
                         raw_yield_file.Close()
 
-                        bkg_dir = "hbkg"
-                        task_name = f"{icut}_hbkg_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
-                        fit_set = {"signal_func": ["nosignal"],
-                                    "bkg_func": pt_bin_set["Bkg_func"],
-                                    "mass_range": pt_bin_set["Mass_range"],
-                                    "rebin": pt_bin_set["Rebin"],
-                                    "bin_counting": [True, 0.1396, 0.165],
-                                    "init_pars":[False],
-                                    "fix_pars":[False],
-                                    "out_dir": os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}",self.config.Analysis["Ana_name"]) 
-                                }
-                        
-                        raw_yield, raw_yield_error, par_dict_bkg = self.fit_ops.fit_inv_mass(file, bkg_dir, task_name, fit_set)
-
+                        if pt_bin_set["with_bkg"]:
+                            bkg_dir = "hbkg"
+                            task_name = f"{icut}_hbkg_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
+                            fit_set = {"signal_func": ["nosignal"],
+                                        "bkg_func": pt_bin_set["Bkg_func"],
+                                        "mass_range": pt_bin_set["Mass_range"],
+                                        "rebin": pt_bin_set["Rebin"],
+                                        "bin_counting": [True, 0.1396, 0.165],
+                                        "init_pars":[False],
+                                        "fix_pars":[False],
+                                        "Custom_pars":[False],
+                                        "threshold": pt_bin_set["threshold"],
+                                        "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}") 
+                                    }
+                            
+                            raw_yield, raw_yield_error, par_dict_bkg = self.fit_ops.fit_inv_mass(file, bkg_dir, task_name, fit_set)
+                            fix_pars_set = [True, "power", "c1", "c2", "c3"],
+                        else:
+                            par_dict_bkg = {}
+                            fix_pars_set = [False]
                         data_dir = "hmass"
                         task_name = f"{icut}_hmass_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
 
@@ -109,8 +115,10 @@ class FracOps(object):
                                     "rebin": pt_bin_set["Rebin"],
                                     "bin_counting": [True, 0.1396, 0.165],
                                     "init_pars":[False,par_dict_bkg],
-                                    "fix_pars":[True, "power", "c1", "c2", "c3"],
-                                    "out_dir": os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}",self.config.Analysis["Ana_name"])
+                                    "fix_pars":fix_pars_set,
+                                    "Custom_pars":[False],
+                                    "threshold": pt_bin_set["threshold"],
+                                    "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
                         
                         raw_yield, raw_yield_error, pars_dict_data = self.fit_ops.fit_inv_mass(file, data_dir, task_name, fit_set)
@@ -136,7 +144,9 @@ class FracOps(object):
                                     "bin_counting": [True, 0.1396, 0.165],
                                     "init_pars":[False,pars_dict],
                                     "fix_pars":[True, "nl","nr","alphal","alphar","sigma"],
-                                    "out_dir": os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}",self.config.Analysis["Ana_name"])
+                                    "Custom_pars":[False],
+                                    "threshold": pt_bin_set["threshold"],
+                                    "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
                         
                         raw_yield, raw_yield_error, pars_dict_no = self.fit_ops.fit_inv_mass(file, data_dir, task_name, fit_set)
@@ -168,8 +178,8 @@ class FracOps(object):
                 continue
             self.logger.info(f"Get efficiency for cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
-            eff_dir = os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/{self.config.Analysis['Ana_name']}/efficiency")
-            frac_dir = os.path.join(self.out_dir,f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}/{self.config.Analysis['Ana_name']}/fraction")
+            eff_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency")
+            frac_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction")
             os.makedirs(eff_dir, exist_ok=True)
             os.makedirs(frac_dir, exist_ok=True)
 
@@ -231,8 +241,7 @@ class FracOps(object):
                     self.logger.error("-"*50)
                     self.logger.error(e)
                     self.logger.error("-"*50)
-       
-    
+        
     def get_fraction(self):
         
         self.logger.info("Get fraction from raw yield and efficiency...")

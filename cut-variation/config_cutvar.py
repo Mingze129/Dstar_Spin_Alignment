@@ -1,16 +1,18 @@
 import numpy as np
 import sys
 sys.path.append("..")
-import Configurations
+sys.path.append("../Sys_config")
+import Configurations as config
 
-gen_set = Configurations
-bin_set = Configurations.BinSet["pt_bin_set"]
-task_name = Configurations.Analysis["Task_Name"]
+gen_set = config
+bin_set = config.BinSet["pt_bin_set"]
+task_name = config.Analysis["Task_Name"]
+Ana_name = config.Analysis["Ana_name"]
 
-pt_min = 7
-pt_max = 10
-start_bin = 3
-end_bin = 20
+pt_min = 50
+pt_max = 100
+start_bin = 0
+end_bin = 12
 remove_bin = []
 
 fd_edges = bin_set[f"{pt_min}-{pt_max}"]["var_fd_range"]
@@ -25,12 +27,12 @@ for nbin in remove_bin:
 
 cutvar_set = {
     "rawyields": {
-      "inputdir": f"../Output/{task_name}/Cut-variation/pt_{pt_min}_{pt_max}/raw_yield",
+      "inputdir": f"../Output/{task_name}/Cut-variation/{Ana_name}/pt_{pt_min}_{pt_max}/raw_yield",
       "inputfiles": raw_yield_list,
       "histoname": "hraw_yield"
     },
     "efficiencies": {
-      "inputdir": f"../Output/{task_name}/Cut-variation/pt_{pt_min}_{pt_max}/efficiency",
+      "inputdir": f"../Output/{task_name}/Cut-variation/{Ana_name}/pt_{pt_min}_{pt_max}/efficiency",
       "inputfiles": eff_list,
       "histonames": {
         "prompt": "heff_prompt",
@@ -42,7 +44,7 @@ cutvar_set = {
     },
     "central_efficiency": {
         "computerawfrac": True,
-        "inputdir": f"../Output/{task_name}/Cut-variation/pt_{pt_min}_{pt_max}/efficiency",
+        "inputdir": f"../Output/{task_name}/Cut-variation/{Ana_name}/pt_{pt_min}_{pt_max}/efficiency",
         "inputfile": f"0_efficiency_fd-cut_{fd_edges[0]:.3f}.root",
         "histonames": {
             "prompt": "heff_prompt",
@@ -50,7 +52,7 @@ cutvar_set = {
         }
     },
     "output": {
-        "directory": f"../Output/{task_name}/Cut-variation/pt_{pt_min}_{pt_max}/fraction",
-        "file": f"CutVar_{task_name}.root"
+        "directory": f"../Output/{task_name}/Cut-variation/{Ana_name}/pt_{pt_min}_{pt_max}/fraction",
+        "file": f"CutVar_{Ana_name}.root"
     }
 }

@@ -385,7 +385,7 @@ class DataOps(object):
 
                 hfrac_np_fd = heff_prompt_fd.Clone("hfrac_np_fd")
 
-                frac_file_dir = os.path.join(self.out_dir,f"Cut-variation/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/{self.config.Analysis['Ana_name']}/fraction","CutVar_"+self.config.Analysis['Ana_name']+".root")
+                frac_file_dir = os.path.join(self.out_dir,f"Cut-variation/{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction","CutVar_"+self.config.Analysis['Ana_name']+".root")
                 frac_file = ROOT.TFile(frac_file_dir,"READ")
                 corr_yield_prompt = frac_file.Get("hCorrYieldsPrompt")
                 corr_yield_nonprompt = frac_file.Get("hCorrYieldsNonPrompt")

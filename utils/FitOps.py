@@ -45,8 +45,8 @@ class FitOps(object):
         frame_list = self.config.Analysis["Framework"]
         ratio_pars = ["sigma","alphal","alphar"]
 
-        mc_pars_file_dir = os.path.join(os.path.join(os.getcwd(),"Output","Mc_pars"), "Analysis-root", "Mc_pars.root")
-        mc_pars_file = ROOT.TFile(mc_pars_file_dir, "READ")
+        # mc_pars_file_dir = os.path.join(os.path.join(os.getcwd(),"Output","Mc_pars"), "Analysis-root", "Mc_pars.root")
+        # mc_pars_file = ROOT.TFile(mc_pars_file_dir, "READ")
         for frame in frame_list:
 
             self.logger.info(f"Start fitting raw-yield for {frame} frame...")
@@ -75,9 +75,9 @@ class FitOps(object):
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
 
                 fd_bin_pars = {}
-                fd_simga_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/sigma_total_fd")
-                fd_alphal_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/alphal_total_fd")
-                fd_alphar_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/alphar_total_fd")
+                # fd_simga_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/sigma_total_fd")
+                # fd_alphal_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/alphal_total_fd")
+                # fd_alphar_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/alphar_total_fd")
 
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
 
@@ -95,6 +95,8 @@ class FitOps(object):
                                     "bin_counting": [True, 0.1396, 0.165],
                                     "init_pars": [False],
                                     "fix_pars":[False],
+                                    "Custom_pars":[False],
+                                    "threshold": pt_bin_set["threshold"],
                                     "out_dir": self.out_dir
                                 }
                         raw_yield, raw_yield, par_dict_bkg = self.fit_inv_mass(outfile_name, bkg_fd_dir, task_name, fit_set)
@@ -105,7 +107,7 @@ class FitOps(object):
 
                     else:
                         par_dict_bkg = fd_bin_pars
-                        pars_set = [True,"nl","nr","alphal","alphar"]
+                        pars_set = pt_bin_set["fix_pars"]
                         
                     data_fd_dir = os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
                     task_name = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}"
@@ -117,6 +119,8 @@ class FitOps(object):
                                 "bin_counting": [True, 0.1396, 0.165],
                                 "init_pars": [False,par_dict_bkg],
                                 "fix_pars":pars_set,
+                                "Custom_pars":[False],
+                                "threshold": pt_bin_set["threshold"],
                                 "out_dir": self.out_dir
                             }
                     
@@ -129,14 +133,15 @@ class FitOps(object):
                     cos_bin = np.array(cos_edges)
                     hraw_yield = ROOT.TH1F(f"hraw_yield", "hraw_yield_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge};Cos#vartheta*;raw_yield", len(cos_bin)-1, cos_bin)
                     
-                    cos_sigma_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/sigma_total_cos")
-                    cos_alphal_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/alphal_total_cos")
-                    cos_alphar_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/alphar_total_cos")
+                    # cos_sigma_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/sigma_total_cos")
+                    # cos_alphal_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/alphal_total_cos")
+                    # cos_alphar_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/alphar_total_cos")
 
-                    cos_sigma_pars.Scale(1/fd_simga_pars.GetBinContent(ifd+1))
-                    cos_alphal_pars.Scale(1/fd_alphal_pars.GetBinContent(ifd+1))
-                    cos_alphar_pars.Scale(1/fd_alphar_pars.GetBinContent(ifd+1))
+                    # cos_sigma_pars.Scale(1/fd_simga_pars.GetBinContent(ifd+1))
+                    # cos_alphal_pars.Scale(1/fd_alphal_pars.GetBinContent(ifd+1))
+                    # cos_alphar_pars.Scale(1/fd_alphar_pars.GetBinContent(ifd+1))
 
+                    # cos_dict_pars = {}
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
                         cos_dir = fd_dir.mkdir(f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", "", ROOT.kTRUE)
@@ -145,17 +150,22 @@ class FitOps(object):
                         fit_task = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}"
                         data_dir = os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}" , f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_cos_{cos_min_edge}_{cos_max_edge}")
 
-                        par_dict_data["alphal"] = par_dict_data["alphal"]*cos_sigma_pars.GetBinContent(icos+1)
-                        par_dict_data["alphar"] = par_dict_data["alphar"]*cos_sigma_pars.GetBinContent(icos+1)
-                        par_dict_data["sigma"] = par_dict_data["sigma"]*cos_sigma_pars.GetBinContent(icos+1)
+                        # for par in par_dict_data:
+                        #     cos_dict_pars[par] = par_dict_data[par]
+                        
+                        # cos_dict_pars["sigma"] = cos_sigma_pars.GetBinContent(icos+1)*par_dict_data["sigma"]
+                        # cos_dict_pars["alphal"] = cos_alphal_pars.GetBinContent(icos+1)*par_dict_data["alphal"]
+                        # cos_dict_pars["alphar"] = cos_alphar_pars.GetBinContent(icos+1)*par_dict_data["alphar"]
 
                         fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
                                     "bin_counting": [True, 0.1396, 0.165],
-                                    "init_pars": [True,par_dict_data],
+                                    "init_pars": [True,fd_bin_pars],
                                     "fix_pars":pt_bin_set["fix_pars"],
+                                    "Custom_pars":[False],
+                                    "threshold": pt_bin_set["threshold"],
                                     "out_dir": self.out_dir
                                 }
                         raw_yield , raw_yield_error, par_dict_cos = self.fit_inv_mass(outfile_name, data_dir,  fit_task, fit_set)
@@ -177,7 +187,7 @@ class FitOps(object):
                                 limits=fit_set["mass_range"],
                                 rebin=fit_set["rebin"])       
 
-        fitter = F2MassFitter(data_hdl, name_signal_pdf=fit_set["signal_func"], signal_at_threshold=[False], 
+        fitter = F2MassFitter(data_hdl, name_signal_pdf=fit_set["signal_func"], signal_at_threshold=fit_set["threshold"], 
                                 name_background_pdf=fit_set["bkg_func"],
                                 name=f"{task_name}_fit", 
                                 chi2_loss=False,verbosity=7, tol=1.e-1)
@@ -214,6 +224,13 @@ class FitOps(object):
                 elif par in self.func_pars[fit_set["signal_func"][0]]:
                     fitter.set_signal_initpar(0, par, fit_set["init_pars"][1][par],fix = True)
 
+        if fit_set["Custom_pars"][0]:
+            for par in fit_set["Custom_pars"][1]:
+                if par in self.func_pars[fit_set["bkg_func"][0]]:
+                    fitter.set_background_initpar(0, par, fit_set["Custom_pars"][1][par], limits=[fit_set["Custom_pars"][1][par]-fit_set["Custom_pars"][1][par+"_err"],fit_set["Custom_pars"][1][par]+fit_set["Custom_pars"][1][par+"_err"]])
+                elif par in self.func_pars[fit_set["signal_func"][0]]:
+                    fitter.set_signal_initpar(0, par, fit_set["Custom_pars"][1][par], limits=[fit_set["Custom_pars"][1][par]-fit_set["Custom_pars"][1][par+"_err"],fit_set["Custom_pars"][1][par]+fit_set["Custom_pars"][1][par+"_err"]])
+        
         fit_result = fitter.mass_zfit()
 
         if fit_result.converged:
@@ -321,6 +338,7 @@ class FitOps(object):
                                 "bin_counting": [False, 0.1396, 0.165],
                                 "init_pars": [False],
                                 "fix_pars":[False],
+                                "threshold": [False],
                                 "out_dir": os.path.join(os.getcwd(),"Output","Mc_pars")
                             }
                     try:
@@ -339,6 +357,7 @@ class FitOps(object):
                                 "bin_counting": [False, 0.1396, 0.165],
                                 "init_pars": [False],
                                 "fix_pars":[False],
+                                "threshold": [False],
                                 "out_dir": os.path.join(os.getcwd(),"Output","Mc_pars")
                             }
                     try:
@@ -357,6 +376,7 @@ class FitOps(object):
                                 "bin_counting": [False, 0.1396, 0.165],
                                 "init_pars": [False],
                                 "fix_pars":[False],
+                                "threshold": [False],
                                 "out_dir": os.path.join(os.getcwd(),"Output","Mc_pars")
                             }
                     try:
@@ -401,6 +421,7 @@ class FitOps(object):
                                     "bin_counting": [False, 0.1396, 0.165],
                                     "init_pars": [False],
                                     "fix_pars":[False],
+                                    "threshold": [False],
                                     "out_dir": os.path.join(os.getcwd(),"Output","Mc_pars")
                                 }
                         try:
@@ -424,6 +445,7 @@ class FitOps(object):
                                     "bin_counting": [False, 0.1396, 0.165],
                                     "init_pars": [False],
                                     "fix_pars":[False],
+                                    "threshold": [False],
                                     "out_dir": os.path.join(os.getcwd(),"Output","Mc_pars")
                                 }
                         try:
@@ -445,6 +467,7 @@ class FitOps(object):
                                     "bin_counting": [False, 0.1396, 0.165],
                                     "init_pars": [False],
                                     "fix_pars":[False],
+                                    "threshold": [False],
                                     "out_dir": os.path.join(os.getcwd(),"Output","Mc_pars")
                                 }
                         try:
