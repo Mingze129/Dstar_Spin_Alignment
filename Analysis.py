@@ -48,7 +48,7 @@ frac_ops = FracOps(config,logger_config(log_path = logger_file, log_name = "Cut-
 # logger.info("Get fraction by cut-variation method...")
 # frac_ops.get_fraction()
 
-# logger.info("Writing data into analysis file...")
+logger.info("Writing data into analysis file...")
 data, mc = data_ops.load_data()
 # data_ops.write_data(data)
 data_ops.write_mc(mc)

@@ -269,13 +269,13 @@ class DataOps(object):
                     Reco_nonprompt.GetAxis(7).SetRange(fd_min,fd_max)
                     Reco_total.GetAxis(7).SetRange(fd_min,fd_max)
 
-                    hReco_prompt_fd = self.Entries_fill(hReco_prompt_fd,Reco_prompt,ifd+1)
-                    hReco_nonprompt_fd = self.Entries_fill(hReco_nonprompt_fd,Reco_nonprompt,ifd+1)
-                    hReco_total_fd =  self.Entries_fill(hReco_total_fd,Reco_total,ifd+1)
+                    hReco_prompt_fd = self.Entries_fill(hReco_prompt_fd,Reco_prompt,ifd)
+                    hReco_nonprompt_fd = self.Entries_fill(hReco_nonprompt_fd,Reco_nonprompt,ifd)
+                    hReco_total_fd =  self.Entries_fill(hReco_total_fd,Reco_total,ifd)
 
-                    hGen_prompt_fd = self.Entries_fill(hGen_prompt_fd,Gen_prompt,ifd+1)
-                    hGen_nonprompt_fd = self.Entries_fill(hGen_nonprompt_fd,Gen_nonprompt,ifd+1)
-                    hGen_total_fd = self.Entries_fill(hGen_total_fd,Gen_total,ifd+1)
+                    hGen_prompt_fd = self.Entries_fill(hGen_prompt_fd,Gen_prompt,ifd)
+                    hGen_nonprompt_fd = self.Entries_fill(hGen_nonprompt_fd,Gen_nonprompt,ifd)
+                    hGen_total_fd = self.Entries_fill(hGen_total_fd,Gen_total,ifd)
 
                     cos_bin = np.array(cos_edges)
                 
@@ -327,12 +327,12 @@ class DataOps(object):
 
                     # Sligihtly different if calculate efficiency from cos's entries
                     # Reco_error = ctypes.c_double()
-                    # hReco_Enties_fd.SetBinContent(ifd+1,Reco_mc.Projection(0).IntegralAndError(1,Reco_mc.Projection(0).GetNbinsX(),Reco_error))
-                    # hReco_Enties_fd.SetBinError(ifd+1,Reco_error.value)
+                    # hReco_Enties_fd.SetBinContent(ifd,Reco_mc.Projection(0).IntegralAndError(1,Reco_mc.Projection(0).GetNbinsX(),Reco_error))
+                    # hReco_Enties_fd.SetBinError(ifd,Reco_error.value)
 
                     # Gen_error = ctypes.c_double()
-                    # hGen_Enties_fd.SetBinContent(ifd+1,hGen_Enties_cos.IntegralAndError(1,hGen_Enties_cos.GetNbinsX(),Gen_error))
-                    # hGen_Enties_fd.SetBinError(ifd+1,Gen_error.value)
+                    # hGen_Enties_fd.SetBinContent(ifd,hGen_Enties_cos.IntegralAndError(1,hGen_Enties_cos.GetNbinsX(),Gen_error))
+                    # hGen_Enties_fd.SetBinError(ifd,Gen_error.value)
 
                 pt_bin_dir.cd()
               
@@ -394,20 +394,22 @@ class DataOps(object):
                 hEff_total = pt_bin_dir.Get("fd_0.00_1.00/hEff_total_cos")
                 
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
+                    if len(fd_edges) > 2 and ifd == 0:
+                        continue
 
                     fd_dir = pt_bin_dir.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
                     fd_dir.cd()
 
-                    raw_np_frc, raw_np_frc_error = self.get_nonprompt_frac(heff_prompt_fd.GetBinContent(ifd+1),
-                                                                heff_nonprompt_fd.GetBinContent(ifd+1),
+                    raw_np_frc, raw_np_frc_error = self.get_nonprompt_frac(heff_prompt_fd.GetBinContent(ifd),
+                                                                heff_nonprompt_fd.GetBinContent(ifd),
                                                                 corr_yield_prompt.GetBinContent(1),
                                                                 corr_yield_nonprompt.GetBinContent(1),
                                                                 corr_yield_prompt.GetBinError(1),
                                                                 corr_yield_nonprompt.GetBinError(1),
                                                                 Cov_prompt_nonprompt.GetBinContent(1))
  
-                    hfrac_np_fd.SetBinContent(ifd+1, raw_np_frc)
-                    hfrac_np_fd.SetBinError(ifd+1, raw_np_frc_error)
+                    hfrac_np_fd.SetBinContent(ifd, raw_np_frc)
+                    hfrac_np_fd.SetBinError(ifd, raw_np_frc_error)
 
                     hraw_yield = fd_dir.Get("hraw_yield")
                     hEff_cos = fd_dir.Get("hEff_total_cos")
