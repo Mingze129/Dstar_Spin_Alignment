@@ -48,22 +48,19 @@ frac_ops = FracOps(config,logger_config(log_path = logger_file, log_name = "Cut-
 # logger.info("Get fraction by cut-variation method...")
 # frac_ops.get_fraction()
 
-logger.info("Writing data into analysis file...")
-data, mc = data_ops.load_data()
+# logger.info("Writing data into analysis file...")
+# data, mc = data_ops.load_data()
 # data_ops.write_data(data)
-data_ops.write_mc(mc)
+# data_ops.write_mc(mc)
 
 # logger.info("Fitting raw-yield...")
 # fit_ops.get_raw_yield()
 
-# logger.info("Get corrected yield...")
-# data_ops.read_frac()
+logger.info("Get corrected yield...")
+data_ops.read_frac()
 
-# logger.info("Extracted rho by fit the corrected yield...")
-# spin_ops.get_rho()
-# spin_ops.write_simu_rho()
-# spin_ops.extro_rho()
-# spin_ops.plot_rho()
-
-
-
+logger.info("Extracted rho by fit the corrected yield...")
+spin_ops.get_rho()
+spin_ops.write_simu_rho()
+spin_ops.extro_rho()
+spin_ops.plot_rho()

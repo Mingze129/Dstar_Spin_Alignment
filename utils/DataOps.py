@@ -99,6 +99,11 @@ class DataOps(object):
                 Tdata = self.get_sparse(data, f"h{frame}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
                 Tbkg = self.get_sparse(data,f"h{frame}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
                 
+                D0_min = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+                D0_max = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+                Tdata.GetAxis(1).SetRange(D0_min,D0_max)
+                Tbkg.GetAxis(1).SetRange(D0_min,D0_max)
+
                 Tdata.GetAxis(5).SetRange(self.config.Analysis["Min_eta_track"],100)
                 Tbkg.GetAxis(5).SetRange(self.config.Analysis["Min_eta_track"],100)
                 Tdata.GetAxis(6).SetRange(self.config.Analysis["Min_cls_ITS"],100)
@@ -222,6 +227,12 @@ class DataOps(object):
                 Reco_total.GetAxis(1).SetRange(pt_min,pt_max)
                 Gen_total.GetAxis(0).SetRange(pt_min,pt_max)
 
+                D0_min = Reco_prompt.GetAxis(4).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+                D0_max = Reco_prompt.GetAxis(4).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+                Reco_prompt.GetAxis(4).SetRange(D0_min,D0_max)
+                Reco_nonprompt.GetAxis(4).SetRange(D0_min,D0_max)
+                Reco_total.GetAxis(4).SetRange(D0_min,D0_max)
+
                 bkg_max = Reco_prompt.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
                 Reco_prompt.GetAxis(6).SetRange(0, bkg_max)
                 Reco_nonprompt.GetAxis(6).SetRange(0, bkg_max)
@@ -269,13 +280,18 @@ class DataOps(object):
                     Reco_nonprompt.GetAxis(7).SetRange(fd_min,fd_max)
                     Reco_total.GetAxis(7).SetRange(fd_min,fd_max)
 
-                    hReco_prompt_fd = self.Entries_fill(hReco_prompt_fd,Reco_prompt,ifd)
-                    hReco_nonprompt_fd = self.Entries_fill(hReco_nonprompt_fd,Reco_nonprompt,ifd)
-                    hReco_total_fd =  self.Entries_fill(hReco_total_fd,Reco_total,ifd)
+                    if len(fd_edges) > 2:
+                        bin_num = ifd
+                    else:
+                        bin_num = ifd+1
 
-                    hGen_prompt_fd = self.Entries_fill(hGen_prompt_fd,Gen_prompt,ifd)
-                    hGen_nonprompt_fd = self.Entries_fill(hGen_nonprompt_fd,Gen_nonprompt,ifd)
-                    hGen_total_fd = self.Entries_fill(hGen_total_fd,Gen_total,ifd)
+                    hReco_prompt_fd = self.Entries_fill(hReco_prompt_fd,Reco_prompt,bin_num)
+                    hReco_nonprompt_fd = self.Entries_fill(hReco_nonprompt_fd,Reco_nonprompt,bin_num)
+                    hReco_total_fd =  self.Entries_fill(hReco_total_fd,Reco_total,bin_num)
+
+                    hGen_prompt_fd = self.Entries_fill(hGen_prompt_fd,Gen_prompt,bin_num)
+                    hGen_nonprompt_fd = self.Entries_fill(hGen_nonprompt_fd,Gen_nonprompt,bin_num)
+                    hGen_total_fd = self.Entries_fill(hGen_total_fd,Gen_total,bin_num)
 
                     cos_bin = np.array(cos_edges)
                 
@@ -394,22 +410,25 @@ class DataOps(object):
                 hEff_total = pt_bin_dir.Get("fd_0.00_1.00/hEff_total_cos")
                 
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
-                    if len(fd_edges) > 2 and ifd == 0:
-                        continue
+
+                    if len(fd_edges) > 2:
+                        bin_num = ifd
+                    else:
+                        bin_num = ifd+1
 
                     fd_dir = pt_bin_dir.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
                     fd_dir.cd()
 
-                    raw_np_frc, raw_np_frc_error = self.get_nonprompt_frac(heff_prompt_fd.GetBinContent(ifd),
-                                                                heff_nonprompt_fd.GetBinContent(ifd),
+                    raw_np_frc, raw_np_frc_error = self.get_nonprompt_frac(heff_prompt_fd.GetBinContent(bin_num),
+                                                                heff_nonprompt_fd.GetBinContent(bin_num),
                                                                 corr_yield_prompt.GetBinContent(1),
                                                                 corr_yield_nonprompt.GetBinContent(1),
                                                                 corr_yield_prompt.GetBinError(1),
                                                                 corr_yield_nonprompt.GetBinError(1),
                                                                 Cov_prompt_nonprompt.GetBinContent(1))
  
-                    hfrac_np_fd.SetBinContent(ifd, raw_np_frc)
-                    hfrac_np_fd.SetBinError(ifd, raw_np_frc_error)
+                    hfrac_np_fd.SetBinContent(bin_num, raw_np_frc)
+                    hfrac_np_fd.SetBinError(bin_num, raw_np_frc_error)
 
                     hraw_yield = fd_dir.Get("hraw_yield")
                     hEff_cos = fd_dir.Get("hEff_total_cos")
@@ -626,6 +645,12 @@ class DataOps(object):
 
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
                 pt_bin_dir.cd()
+
+                D0_min = Reco_prompt.GetAxis(4).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+                D0_max = Reco_prompt.GetAxis(4).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+                Reco_prompt.GetAxis(4).SetRange(D0_min,D0_max)
+                Reco_nonprompt.GetAxis(4).SetRange(D0_min,D0_max)
+                Reco_total.GetAxis(4).SetRange(D0_min,D0_max)
 
                 pt_min = Reco_prompt.GetAxis(1).FindBin(pt_min_edge+1e-6)
                 pt_max = Reco_prompt.GetAxis(1).FindBin(pt_max_edge-1e-6)

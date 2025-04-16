@@ -75,6 +75,7 @@ class FitOps(object):
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
 
                 fd_bin_pars = {}
+                cos_dict_list = []
                 # fd_simga_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/sigma_total_fd")
                 # fd_alphal_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/alphal_total_fd")
                 # fd_alphar_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/alphar_total_fd")
@@ -100,13 +101,19 @@ class FitOps(object):
                                     "out_dir": self.out_dir
                                 }
                         raw_yield, raw_yield, par_dict_bkg = self.fit_inv_mass(outfile_name, bkg_fd_dir, task_name, fit_set)
-                        pars_set = [True,"power", "c1", "c2", "c3"]
+                        if pt_bin_set["Bkg_func"] == ["expopowext"]:
+                            pars_set = [True,"power", "c1", "c2", "c3"]
+                        elif pt_bin_set["Bkg_func"] == ["expopow"]:
+                            pars_set = [True,"lam"]
+                        init_set = [False,par_dict_bkg]
                     elif ifd == 0:
                         par_dict_bkg = {}
+                        init_set = [False,par_dict_bkg]
                         pars_set = [False]
 
                     else:
                         par_dict_bkg = fd_bin_pars
+                        init_set = [False,par_dict_bkg]
                         pars_set = pt_bin_set["fix_pars"]
                         
                     data_fd_dir = os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
@@ -117,7 +124,7 @@ class FitOps(object):
                                 "mass_range": pt_bin_set["Mass_range"],
                                 "rebin": pt_bin_set["Rebin"],
                                 "bin_counting": [True, 0.1396, 0.165],
-                                "init_pars": [False,par_dict_bkg],
+                                "init_pars": init_set,
                                 "fix_pars":pars_set,
                                 "Custom_pars":[False],
                                 "threshold": pt_bin_set["threshold"],
@@ -127,8 +134,7 @@ class FitOps(object):
                     raw_yield, raw_yield_error, par_dict_data = self.fit_inv_mass(outfile_name, data_fd_dir, task_name, fit_set)
                     
                     if ifd == 0:
-                        for par in par_dict_data:
-                            fd_bin_pars[par] = par_dict_data[par]
+                        fd_bin_pars.update(par_dict_data)
 
                     cos_bin = np.array(cos_edges)
                     hraw_yield = ROOT.TH1F(f"hraw_yield", "hraw_yield_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge};Cos#vartheta*;raw_yield", len(cos_bin)-1, cos_bin)
@@ -141,7 +147,6 @@ class FitOps(object):
                     # cos_alphal_pars.Scale(1/fd_alphal_pars.GetBinContent(ifd+1))
                     # cos_alphar_pars.Scale(1/fd_alphar_pars.GetBinContent(ifd+1))
 
-                    # cos_dict_pars = {}
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
                         cos_dir = fd_dir.mkdir(f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", "", ROOT.kTRUE)
@@ -149,6 +154,13 @@ class FitOps(object):
 
                         fit_task = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}"
                         data_dir = os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}" , f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_cos_{cos_min_edge}_{cos_max_edge}")
+
+                        if ifd == 0:
+                            init_pars_set = [False, par_dict_data]
+                            fix_pars_set = pt_bin_set["fix_pars"]
+                        else:
+                            init_pars_set = [False, cos_dict_list[icos]]
+                            fix_pars_set = [True,"nl","nr","alphal","alphar","sigma"]
 
                         # for par in par_dict_data:
                         #     cos_dict_pars[par] = par_dict_data[par]
@@ -162,13 +174,16 @@ class FitOps(object):
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
                                     "bin_counting": [True, 0.1396, 0.165],
-                                    "init_pars": [True,fd_bin_pars],
-                                    "fix_pars":pt_bin_set["fix_pars"],
+                                    "init_pars": init_pars_set,
+                                    "fix_pars": fix_pars_set,
                                     "Custom_pars":[False],
                                     "threshold": pt_bin_set["threshold"],
                                     "out_dir": self.out_dir
                                 }
                         raw_yield , raw_yield_error, par_dict_cos = self.fit_inv_mass(outfile_name, data_dir,  fit_task, fit_set)
+                        if ifd == 0:
+                            cos_dict_list.append(par_dict_cos)
+
                         hraw_yield.SetBinContent(icos+1, raw_yield)
                         hraw_yield.SetBinError(icos+1, raw_yield_error)
                     fd_dir.cd()

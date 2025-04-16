@@ -45,6 +45,11 @@ class SpinOps(object):
 
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
 
+                    if len(fd_edges) > 2:
+                        bin_num = ifd
+                    else:
+                        bin_num = ifd+1
+
                     fd_dir = pt_bin_dir.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
                     fd_dir.cd()
 
@@ -56,13 +61,13 @@ class SpinOps(object):
 
                     raw_fit_plot, raw_fit_rho = self.write_rho_plots(raw_yield_hist)
                     raw_fit_plot.Write("raw_yield_fit", ROOT.TObject.kOverwrite)
-                    hraw_rho.SetBinContent(ifd+1, raw_fit_rho[0])
-                    hraw_rho.SetBinError(ifd+1, raw_fit_rho[1])
+                    hraw_rho.SetBinContent(bin_num, raw_fit_rho[0])
+                    hraw_rho.SetBinError(bin_num, raw_fit_rho[1])
 
                     corr_fit_plot, corr_fit_pars = self.write_rho_plots(corr_yield_hist)
                     corr_fit_plot.Write("corr_yield_fit", ROOT.TObject.kOverwrite)
-                    hcorr_rho.SetBinContent(ifd+1, corr_fit_pars[0])
-                    hcorr_rho.SetBinError(ifd+1, corr_fit_pars[1])
+                    hcorr_rho.SetBinContent(bin_num, corr_fit_pars[0])
+                    hcorr_rho.SetBinError(bin_num, corr_fit_pars[1])
 
                 pt_bin_dir.cd()
                 hraw_rho.Write("", ROOT.TObject.kOverwrite)

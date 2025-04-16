@@ -38,10 +38,33 @@ class FracOps(object):
             raw_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield")
             frac_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction")
             os.makedirs(raw_dir, exist_ok=True)
+            # del all file in raw_dir
+            for file in os.listdir(raw_dir):
+                file_path = os.path.join(raw_dir, file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                except Exception as e:
+                    self.logger.error(f"Error deleting file {file_path}: {e}")
             os.makedirs(frac_dir, exist_ok=True)
+
+            fit_plot_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/Mass-Fit/Figure")
+            if os.path.exists(fit_plot_dir):
+                for file in os.listdir(fit_plot_dir):
+                    file_path = os.path.join(fit_plot_dir, file)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                    except Exception as e:
+                        self.logger.error(f"Error deleting file {file_path}: {e}")
 
             Tdata = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
             Tbkg = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
+
+            D0_min = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+            D0_max = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+            Tdata.GetAxis(1).SetRange(D0_min,D0_max)
+            Tbkg.GetAxis(1).SetRange(D0_min,D0_max)
 
             Tdata.GetAxis(5).SetRange(self.config.Analysis["Min_eta_track"],100)
             Tbkg.GetAxis(5).SetRange(self.config.Analysis["Min_eta_track"],100)
@@ -181,8 +204,21 @@ class FracOps(object):
             eff_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency")
             frac_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction")
             os.makedirs(eff_dir, exist_ok=True)
+            # del all file in eff_dir
+            for file in os.listdir(eff_dir):
+                file_path = os.path.join(eff_dir, file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                except Exception as e:
+                    self.logger.error(f"Error deleting file {file_path}: {e}")
             os.makedirs(frac_dir, exist_ok=True)
 
+            D0_min = TReco_prompt.GetAxis(4).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+            D0_max = TReco_prompt.GetAxis(4).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+            TReco_prompt.GetAxis(4).SetRange(D0_min,D0_max)
+            TReco_nonprompt.GetAxis(4).SetRange(D0_min,D0_max)
+            
             pt_min = TReco_prompt.GetAxis(1).FindBin(pt_min_edge+1e-6)
             pt_max = TReco_prompt.GetAxis(1).FindBin(pt_max_edge-1e-6)
             TReco_prompt.GetAxis(1).SetRange(pt_min, pt_max)
