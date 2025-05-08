@@ -1,5 +1,6 @@
 import os 
 import sys
+import gc
 import numpy as np
 from tqdm import tqdm
 import ctypes
@@ -55,7 +56,7 @@ class FitOps(object):
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
-  
+                gc.collect()
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
                     continue
@@ -91,13 +92,15 @@ class FitOps(object):
 
                         fit_set = {"signal_func": ["nosignal"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
+                                    "chi2_loss": pt_bin_set["chi2_loss"],
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
-                                    "bin_counting": [True, 0.1396, 0.165],
+                                    "bin_counting": pt_bin_set["bin_counting"],
                                     "init_pars": [False],
                                     "fix_pars":[False],
                                     "Custom_pars":[False],
                                     "threshold": pt_bin_set["threshold"],
+                                    "corr_bkg": [False],
                                     "out_dir": self.out_dir
                                 }
                         raw_yield, raw_yield, par_dict_bkg = self.fit_inv_mass(outfile_name, bkg_fd_dir, task_name, fit_set)
@@ -118,16 +121,24 @@ class FitOps(object):
                         
                     data_fd_dir = os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
                     task_name = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}"
+                    if pt_bin_set["corr_bkg"][0]:
+                        factor_hist = pt_bin_dir.Get("hist_Norm_cost")
+                        fd_factor = factor_hist.GetBinContent(1)
+                        corr_set = pt_bin_set["corr_bkg"]+[outfile_name]+[os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hist_corrbkg_integral_cos")]+[fd_factor]
+                    else:
+                        corr_set = [False]
 
                     fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                 "bkg_func": pt_bin_set["Bkg_func"],
+                                "chi2_loss": pt_bin_set["chi2_loss"],
                                 "mass_range": pt_bin_set["Mass_range"],
                                 "rebin": pt_bin_set["Rebin"],
-                                "bin_counting": [True, 0.1396, 0.165],
+                                "bin_counting": pt_bin_set["bin_counting"],
                                 "init_pars": init_set,
                                 "fix_pars":pars_set,
                                 "Custom_pars":[False],
                                 "threshold": pt_bin_set["threshold"],
+                                "corr_bkg": corr_set,
                                 "out_dir": self.out_dir
                             }
                     
@@ -168,16 +179,26 @@ class FitOps(object):
                         # cos_dict_pars["sigma"] = cos_sigma_pars.GetBinContent(icos+1)*par_dict_data["sigma"]
                         # cos_dict_pars["alphal"] = cos_alphal_pars.GetBinContent(icos+1)*par_dict_data["alphal"]
                         # cos_dict_pars["alphar"] = cos_alphar_pars.GetBinContent(icos+1)*par_dict_data["alphar"]
+                        if pt_bin_set["corr_bkg"][0]:
+                            factor_func = pt_bin_dir.Get("decay_plateau_func")
+                            cos_bin_center = (cos_min_edge+cos_max_edge)/2
+                            fd_factor = factor_func.Eval(cos_bin_center)
+                            corr_set = pt_bin_set["corr_bkg"]+[outfile_name]+[os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", f"hist_corrbkg_template")]+[fd_factor]
+                        else:
+                            corr_set = [False]
+
 
                         fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
+                                    "chi2_loss": pt_bin_set["chi2_loss"],
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
-                                    "bin_counting": [True, 0.1396, 0.165],
+                                    "bin_counting": pt_bin_set["bin_counting"],
                                     "init_pars": init_pars_set,
                                     "fix_pars": fix_pars_set,
                                     "Custom_pars":[False],
                                     "threshold": pt_bin_set["threshold"],
+                                    "corr_bkg": corr_set,
                                     "out_dir": self.out_dir
                                 }
                         raw_yield , raw_yield_error, par_dict_cos = self.fit_inv_mass(outfile_name, data_dir,  fit_task, fit_set)
@@ -197,15 +218,30 @@ class FitOps(object):
         figure_dir = os.path.join(fit_set["out_dir"], "Mass-Fit/Figure")
         fit_dir = os.path.join(fit_set["out_dir"], "Mass-Fit")
 
+        if fit_set["corr_bkg"][0]:
+            corr_bkg_hdl = DataHandler(data=fit_set["corr_bkg"][1], 
+                                        histoname=fit_set["corr_bkg"][2],
+                                        limits=fit_set["mass_range"],
+                                        rebin=fit_set["rebin"])
+
         data_hdl = DataHandler(data=outfile_name, 
                                 histoname=data_dir,
                                 limits=fit_set["mass_range"],
                                 rebin=fit_set["rebin"])       
 
-        fitter = F2MassFitter(data_hdl, name_signal_pdf=fit_set["signal_func"], signal_at_threshold=fit_set["threshold"], 
+        if fit_set["corr_bkg"][0]:
+            fitter = F2MassFitter(data_hdl, name_signal_pdf=fit_set["signal_func"], signal_at_threshold=fit_set["threshold"],
+                                name_background_pdf=["hist"]+fit_set["bkg_func"],
+                                name=f"{task_name}_fit", 
+                                chi2_loss=fit_set["chi2_loss"],verbosity=7, tol=1.e-1,
+                                corr_bkg_hdl=corr_bkg_hdl)
+            fitter.set_background_template(0,corr_bkg_hdl)
+            fitter.fix_bkg_frac_to_signal_pdf(0,0,fit_set["corr_bkg"][3])
+        else:
+            fitter = F2MassFitter(data_hdl, name_signal_pdf=fit_set["signal_func"], signal_at_threshold=fit_set["threshold"], 
                                 name_background_pdf=fit_set["bkg_func"],
                                 name=f"{task_name}_fit", 
-                                chi2_loss=False,verbosity=7, tol=1.e-1)
+                                chi2_loss=fit_set["chi2_loss"],verbosity=7, tol=1.e-1)
 
         mass_init = (Particle.from_pdgid(413).mass - Particle.from_pdgid(421).mass)*1.e-3
         fitter.set_particle_mass(0, mass=mass_init, limits=[mass_init*0.95, mass_init*1.05])
@@ -215,9 +251,12 @@ class FitOps(object):
                 if par in self.func_pars["Init_value"]:
                     par_value = fit_set["init_pars"][1][par]
                     par_error = np.abs(fit_set["init_pars"][1][par+"_error"])
-                    fitter.set_background_initpar(0,par,par_value,limits=[par_value-par_error-abs(par_value)*0.2,par_value+par_error+abs(par_value)*0.2] )
+                    if fit_set["corr_bkg"][0]:
+                        fitter.set_background_initpar(1,par,par_value,limits=[par_value-par_error-abs(par_value)*0.2,par_value+par_error+abs(par_value)*0.2])
+                    else:
+                        fitter.set_background_initpar(0,par,par_value,limits=[par_value-par_error-abs(par_value)*0.2,par_value+par_error+abs(par_value)*0.2])
 
-            for par in self.func_pars[fit_set["signal_func"][0]]:
+            for par in self.func_pars[fit_set["signal_func"][0]] and par in fit_set["init_pars"][1]:
                 if par in self.func_pars["Init_value"]:
                     par_value = fit_set["init_pars"][1][par]
                     par_error = np.abs(fit_set["init_pars"][1][par+"_error"])
@@ -230,23 +269,39 @@ class FitOps(object):
 
             for par in self.func_pars[fit_set["bkg_func"][0]]:
                 if par in self.func_pars["Init_value"]:
-                    fitter.set_background_initpar(0,par,self.func_pars["Init_value"][par])
+                    if fit_set["corr_bkg"][0]:
+                        fitter.set_background_initpar(1,par,self.func_pars["Init_value"][par])
+                    else:
+                        fitter.set_background_initpar(0,par,self.func_pars["Init_value"][par])
 
         if fit_set["fix_pars"][0]:
             for par in fit_set["fix_pars"][1:]:
-                if par in self.func_pars[fit_set["bkg_func"][0]]:
-                    fitter.set_background_initpar(0, par, fit_set["init_pars"][1][par],fix = True)
+                if par in self.func_pars[fit_set["bkg_func"][0]] and par in fit_set["init_pars"][1]:
+                    if fit_set["corr_bkg"][0]:
+                        fitter.set_background_initpar(1, par, fit_set["init_pars"][1][par],fix = True)
+                    else:
+                        fitter.set_background_initpar(0, par, fit_set["init_pars"][1][par],fix = True)
                 elif par in self.func_pars[fit_set["signal_func"][0]]:
-                    fitter.set_signal_initpar(0, par, fit_set["init_pars"][1][par],fix = True)
+                    if par in fit_set["init_pars"][1]:
+                        fitter.set_signal_initpar(0, par, fit_set["init_pars"][1][par],fix = True)
 
         if fit_set["Custom_pars"][0]:
             for par in fit_set["Custom_pars"][1]:
                 if par in self.func_pars[fit_set["bkg_func"][0]]:
-                    fitter.set_background_initpar(0, par, fit_set["Custom_pars"][1][par], limits=[fit_set["Custom_pars"][1][par]-fit_set["Custom_pars"][1][par+"_err"],fit_set["Custom_pars"][1][par]+fit_set["Custom_pars"][1][par+"_err"]])
+                    if fit_set["corr_bkg"][0]:
+                        fitter.set_background_initpar(1, par, fit_set["Custom_pars"][1][par], limits=[fit_set["Custom_pars"][1][par]-fit_set["Custom_pars"][1][par+"_err"],fit_set["Custom_pars"][1][par]+fit_set["Custom_pars"][1][par+"_err"]])
+                    else:
+                        fitter.set_background_initpar(0, par, fit_set["Custom_pars"][1][par], limits=[fit_set["Custom_pars"][1][par]-fit_set["Custom_pars"][1][par+"_err"],fit_set["Custom_pars"][1][par]+fit_set["Custom_pars"][1][par+"_err"]])
                 elif par in self.func_pars[fit_set["signal_func"][0]]:
-                    fitter.set_signal_initpar(0, par, fit_set["Custom_pars"][1][par], limits=[fit_set["Custom_pars"][1][par]-fit_set["Custom_pars"][1][par+"_err"],fit_set["Custom_pars"][1][par]+fit_set["Custom_pars"][1][par+"_err"]])
+                    if par in fit_set["init_pars"][1]:
+                        fitter.set_signal_initpar(0, par, fit_set["Custom_pars"][1][par], limits=[fit_set["Custom_pars"][1][par]-fit_set["Custom_pars"][1][par+"_err"],fit_set["Custom_pars"][1][par]+fit_set["Custom_pars"][1][par+"_err"]])
         
-        fit_result = fitter.mass_zfit()
+        try:
+            fit_result = fitter.mass_zfit()
+        except Exception as e:
+            self.logger.error(f"Failed to fit {task_name}!")
+            self.logger.error(f"Error: {e}")
+            return 0, 0, {}
 
         if fit_result.converged:
             try:
@@ -270,12 +325,26 @@ class FitOps(object):
                 # fitter.dump_to_root(filename = f"{os.path.join(fit_dir, 'AnalysisFit.root')}", option="update",
                                         # suffix=f"_{task_name}_bkg")
         else:
-            self.logger.error(f"Fit for {task_name} is not converged!")
+            try:
+                fig , axs= fitter.plot_mass_fit(style="ATLAS", show_extra_info=False,
+                                                figsize=(8, 8), extra_info_loc=["upper left", "right"],
+                                                axis_title=self.ax_title)
+                fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
+                if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
+                    fit_root.Close()
+                self.logger.error(f"Fit for {task_name} is not converged!")
+            except:
+                self.logger.error(f"Fit for {task_name} is not converged! and can't save figure!")
 
         par_dict = {}
         for par in self.func_pars[fit_set["bkg_func"][0]]:
-            par_dict[par] = fitter.get_background_parameter(0, par)[0]
-            par_dict[par+"_error"] = fitter.get_background_parameter(0, par)[1]
+            if fit_set["corr_bkg"][0] :
+                par_dict[par] = fitter.get_background_parameter(1, par)[0]
+                par_dict[par+"_error"] = fitter.get_background_parameter(1, par)[1]
+            else:
+                par_dict[par] = fitter.get_background_parameter(0, par)[0]
+                par_dict[par+"_error"] = fitter.get_background_parameter(0, par)[1]
         
         for par in self.func_pars[fit_set["signal_func"][0]]:
             if fit_set["bkg_func"][0] == "nobkg" and par == "frac":
@@ -309,7 +378,7 @@ class FitOps(object):
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
-
+                gc.collect()
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
                     continue
@@ -348,9 +417,10 @@ class FitOps(object):
 
                     fit_set = {"signal_func": ["doublecb"],
                                 "bkg_func": ["nobkg"],
+                                "chi2_loss": pt_bin_set["chi2_loss"],
                                 "mass_range": mass_range,
                                 "rebin": pt_bin_set["Rebin"],
-                                "bin_counting": [False, 0.1396, 0.165],
+                                "bin_counting": pt_bin_set["bin_counting"],
                                 "init_pars": [False],
                                 "fix_pars":[False],
                                 "threshold": [False],
@@ -367,9 +437,10 @@ class FitOps(object):
 
                     fit_set = {"signal_func": ["doublecb"],
                                 "bkg_func": ["nobkg"],
+                                "chi2_loss": pt_bin_set["chi2_loss"],
                                 "mass_range": mass_range,
                                 "rebin": pt_bin_set["Rebin"],
-                                "bin_counting": [False, 0.1396, 0.165],
+                                "bin_counting": pt_bin_set["bin_counting"],
                                 "init_pars": [False],
                                 "fix_pars":[False],
                                 "threshold": [False],
@@ -386,9 +457,10 @@ class FitOps(object):
 
                     fit_set = {"signal_func": ["doublecb"],
                                 "bkg_func": ["nobkg"],
+                                "chi2_loss": pt_bin_set["chi2_loss"],
                                 "mass_range": mass_range,
                                 "rebin": pt_bin_set["Rebin"],
-                                "bin_counting": [False, 0.1396, 0.165],
+                                "bin_counting": pt_bin_set["bin_counting"],
                                 "init_pars": [False],
                                 "fix_pars":[False],
                                 "threshold": [False],
@@ -431,9 +503,10 @@ class FitOps(object):
 
                         fit_set = {"signal_func": ["doublecb"],
                                     "bkg_func": ["nobkg"],
+                                    "chi2_loss": pt_bin_set["chi2_loss"],
                                     "mass_range": mass_range,
                                     "rebin": pt_bin_set["Rebin"],
-                                    "bin_counting": [False, 0.1396, 0.165],
+                                    "bin_counting": pt_bin_set["bin_counting"],
                                     "init_pars": [False],
                                     "fix_pars":[False],
                                     "threshold": [False],
@@ -455,9 +528,10 @@ class FitOps(object):
 
                         fit_set = {"signal_func": ["doublecb"],
                                     "bkg_func": ["nobkg"],
+                                    "chi2_loss": pt_bin_set["chi2_loss"],
                                     "mass_range": mass_range,
                                     "rebin": pt_bin_set["Rebin"],
-                                    "bin_counting": [False, 0.1396, 0.165],
+                                    "bin_counting": pt_bin_set["bin_counting"],
                                     "init_pars": [False],
                                     "fix_pars":[False],
                                     "threshold": [False],
@@ -477,9 +551,10 @@ class FitOps(object):
 
                         fit_set = {"signal_func": ["doublecb"],
                                     "bkg_func": ["nobkg"],
+                                    "chi2_loss": pt_bin_set["chi2_loss"],
                                     "mass_range": mass_range,
                                     "rebin": pt_bin_set["Rebin"],
-                                    "bin_counting": [False, 0.1396, 0.165],
+                                    "bin_counting": pt_bin_set["bin_counting"],
                                     "init_pars": [False],
                                     "fix_pars":[False],
                                     "threshold": [False],

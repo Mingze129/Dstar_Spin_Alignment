@@ -1,5 +1,6 @@
 import os
 import sys
+import gc
 import numpy as np
 from tqdm import tqdm
 import ctypes
@@ -88,6 +89,8 @@ class DataOps(object):
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+                
+                gc.collect()
 
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
@@ -174,8 +177,10 @@ class DataOps(object):
                         hbkg.GetXaxis().SetTitle(f"M(K#pi#pi) - M(K#pi) GeV/#it{{c}}^{{2}}")
                         hbkg.GetYaxis().SetTitle("Entries")
                         hbkg.Write("",ROOT.TObject.kOverwrite)
-
-                        plot = self.Compare(hbkg,hmass)
+                        try:
+                            plot = self.Compare(hbkg,hmass)
+                        except:
+                            self.logger.error(f"Error in ploting bkg over signal {frame} pt {pt_min_edge} {pt_max_edge} cos {cos_min_edge} {cos_max_edge}")
                         plot.Write("",ROOT.TObject.kOverwrite)
 
         outfile.Close()
@@ -209,6 +214,8 @@ class DataOps(object):
             Gen_total.GetAxis(2).SetRange(y_min,y_max)
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+                
+                gc.collect()
 
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
@@ -503,7 +510,6 @@ class DataOps(object):
         for i in range(1, len(sparse)):
             try:
                 sparse[0].Add(sparse[i])
-                self.logger.info(f"Merging {i}_{sparse[i].GetName()}")
                 sparse[i].Delete()
             except:
                 self.logger.error(f"Error when mergeing {name}")
@@ -712,5 +718,101 @@ class DataOps(object):
                         hmass_nonprompt.Write(f"hnonprompt_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}_nonprompt",ROOT.TObject.kOverwrite)
                         hmass_total = Reco_total.Projection(0)
                         hmass_total.Write(f"htotal_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}_total",ROOT.TObject.kOverwrite)
+
+        outfile.Close()
+
+    def write_corr_fit(self):
+        
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
+
+        outfile = ROOT.TFile(outfile_name, "UPDATE")
+        frame_list = self.config.Analysis["Framework"]
+
+        for frame in frame_list:
+            self.logger.info(f"Writing correction fit of {frame} framework...")
+            frame_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
+            frame_dir.cd()
+
+            for ipt, (pt_min,pt_max) in enumerate(zip([30,50],[50,100])):
+                factor_dir = os.path.join(self.out_dir, f"../../macro/part_study/templates_corrbkg_pt30_50.root ")
+                factor_file = ROOT.TFile(factor_dir, "READ")
+                factor_hist = factor_file.Get("hist_factor_cost")
+
+                pt_dir = frame_dir.Get(f"pt_{pt_min}_{pt_max}")
+                pt_dir.cd()
+
+                factor_hist.Write(f"hist_Norm_cost",ROOT.TObject.kOverwrite)
+
+                decay_plateau_func = ROOT.TF1("decay_plateau_func", "[0]*exp(-[1]*x)*(1/(1+exp([2]*(x-[3]))))+[4]",-1,1)
+                decay_plateau_func.SetParameters(0.2, 2.0, 10.0, 0.1, 0.12)
+
+                decay_plateau_func.SetParNames("A", "k", "λ", "x₀", "C")
+
+                factor_hist.Fit(decay_plateau_func, "R","S")
+                chi2 = decay_plateau_func.GetChisquare()
+                chi2ndf = decay_plateau_func.GetNDF()
+
+                canves = ROOT.TCanvas("decay_plateau_func", "decay_plateau_func", 800, 600)
+                canves.cd()
+                factor_hist.SetTitle(f"Decay Plateau Fit")
+                factor_hist.GetXaxis().SetTitle("Cos#vartheta*")
+                factor_hist.GetYaxis().SetTitle("Factor")
+                factor_hist.SetLineColor(ROOT.kBlack)
+                factor_hist.SetMarkerColor(ROOT.kBlack)
+                factor_hist.SetMarkerStyle(20)
+                factor_hist.SetMarkerSize(0.5)
+
+                factor_hist.Draw("PE")
+                decay_plateau_func.SetLineColor(ROOT.kRed)
+                decay_plateau_func.SetLineWidth(2)
+                decay_plateau_func.Draw("SAME")
+                legend = ROOT.TLegend(0.7, 0.7, 0.9, 0.9)
+                legend.AddEntry(factor_hist, "MC", "lep")
+                legend.AddEntry(decay_plateau_func, "Decay Plateau Fit", "l")
+                legend.Draw("SAME")
+
+                Latex = ROOT.TLatex()
+                Latex.SetTextSize(0.03)
+                Latex.SetTextAlign(13)
+                Latex.SetTextColor(ROOT.kBlack)
+                Latex.DrawLatex(0.2, 0.6, f"#chi^{{2}}/ndf = {chi2:.2f}/{chi2ndf:.2f}")
+                Latex.DrawLatex(0.2, 0.55, f"A = {decay_plateau_func.GetParameter(0):.3f} #pm {decay_plateau_func.GetParError(0):.3f}")
+                Latex.DrawLatex(0.2, 0.5, f"k = {decay_plateau_func.GetParameter(1):.3f} #pm {decay_plateau_func.GetParError(1):.3f}")
+                Latex.DrawLatex(0.2, 0.45, f"#lambda = {decay_plateau_func.GetParameter(2):.3f} #pm {decay_plateau_func.GetParError(2):.3f}")
+                Latex.DrawLatex(0.2, 0.4, f"x_{{0}} = {decay_plateau_func.GetParameter(3):.3f} #pm {decay_plateau_func.GetParError(3):.3f}")
+                Latex.DrawLatex(0.2, 0.35, f"C = {decay_plateau_func.GetParameter(4):.3f} #pm {decay_plateau_func.GetParError(4):.3f}")
+
+                canves.Update()
+                canves.Write(f"decay_plateau_func_fit", ROOT.TObject.kOverwrite)
+
+                decay_plateau_func.Write(f"decay_plateau_func", ROOT.TObject.kOverwrite)
+
+                factor_file.Close()
+                factor_dir = os.path.join(self.out_dir, f"../../macro/part_study/templates_corrbkg_pt{pt_min}_{pt_max}.root")
+                factor_file = ROOT.TFile(factor_dir, "READ")
+
+                cos_edges = self.config.BinSet["pt_bin_set"][f"{pt_min}-{pt_max}"]["cos_bin_edges"]
+                #define a empty histogram to store the integral of the fit function
+                hist_corrbkg_integral_cos = factor_file.Get(f"hist_corrbkg_pt_{pt_min}_{pt_max}_cost_{cos_edges[0]:.1f}_{cos_edges[1]:.1f}")
+
+                for icos, (cos_min_edge, cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
+
+                    cos_dir = pt_dir.Get(f"fd_0.00_1.00/cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}")
+                    cos_dir.cd()
+
+                    template_hist = factor_file.Get(f"hist_corrbkg_pt_{pt_min}_{pt_max}_cost_{cos_min_edge:.1f}_{cos_max_edge:.1f}")
+                    template_hist.Write(f"hist_corrbkg_template", ROOT.TObject.kOverwrite)
+
+                    if icos == 0:
+                        continue
+                    else:
+                        hist_corrbkg_integral_cos.Add(template_hist)
+
+                fd_dir = pt_dir.Get(f"fd_0.00_1.00")
+                fd_dir.cd()
+                hist_corrbkg_integral_cos.Write(f"hist_corrbkg_integral_cos", ROOT.TObject.kOverwrite)
+
+                factor_file.Close()
+
 
         outfile.Close()

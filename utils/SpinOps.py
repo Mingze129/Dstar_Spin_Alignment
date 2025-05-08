@@ -176,7 +176,7 @@ class SpinOps(object):
         func = ROOT.TF1("frho00","[0]*((1-[1])+(3*[1]-1)*x*x)",-1,1)
         func.SetParameter(0,1)
         func.SetParameter(1,0.3)
-        func.SetParLimits(1,0,1)
+        func.SetParLimits(1,0,0.8)
 
         hraw_yield.Fit(func,"R,S")
 

@@ -1,5 +1,6 @@
 import os
 import sys
+import gc
 import numpy as np
 import re
 import ctypes
@@ -29,7 +30,7 @@ class FracOps(object):
         pt_edges = self.config.BinSet["pt_bin_edges"]
 
         for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
-
+            gc.collect()
             pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
             if not pt_bin_set["doing"]:
                 continue
@@ -81,6 +82,17 @@ class FracOps(object):
 
             pars_dict = {}
 
+            if pt_bin_set["corr_bkg"][0]:
+                factor_dir = os.path.join("/home/mingze/work/dstar/Dstar_Spin_Alignment", "macro/part_study/templates_corrbkg_pt30_50.root")
+                factor_file = ROOT.TFile(factor_dir,"READ")
+                factor_hist = factor_file.Get("hist_factor_cost")
+                factor= factor_hist.GetBinContent(1)
+                
+                template = factor_file.Get("hist_corrbkg_pt_30_50_cost_-1.0_-0.8")
+                for cos_min, cos_max in zip(pt_bin_set["cos_bin_edges"][1:-1], pt_bin_set["cos_bin_edges"][2:]):
+                    template_cos = factor_file.Get(f"hist_corrbkg_pt_30_50_cost_{cos_min:.1f}_{cos_max:.1f}")
+                    template.Add(template_cos)
+                  
             for icut, fd_min_edge in enumerate(fd_edges[:-1]):
 
                 cos_max = Tdata.GetAxis(2).FindBin(1-1e-6)
@@ -99,6 +111,8 @@ class FracOps(object):
                     hmass = Tdata.Projection(0).Clone("hmass")
                     raw_yield_file.cd()
                     hmass.Write("",ROOT.TObject.kOverwrite)
+                    if pt_bin_set["corr_bkg"][0]:
+                        template.Write("template",ROOT.TObject.kOverwrite)
                     
                     file = os.path.join(raw_dir, f"{icut}_raw_yield_fd-cut_{fd_min_edge:.3f}.root")
 
@@ -108,19 +122,25 @@ class FracOps(object):
                         raw_yield_file.cd()
                         hbkg.Write("",ROOT.TObject.kOverwrite)
                         raw_yield_file.Close()
+                        if pt_bin_set["corr_bkg"][0]:
+                            corr_set = [True, file,"template",factor]
+                        else:
+                            corr_set = [False]
 
                         if pt_bin_set["with_bkg"]:
                             bkg_dir = "hbkg"
                             task_name = f"{icut}_hbkg_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
                             fit_set = {"signal_func": ["nosignal"],
                                         "bkg_func": pt_bin_set["Bkg_func"],
+                                        "chi2_loss": pt_bin_set["chi2_loss"],
                                         "mass_range": pt_bin_set["Mass_range"],
                                         "rebin": pt_bin_set["Rebin"],
-                                        "bin_counting": [True, 0.1396, 0.165],
+                                        "bin_counting": pt_bin_set["bin_counting"],
                                         "init_pars":[False],
                                         "fix_pars":[False],
                                         "Custom_pars":[False],
                                         "threshold": pt_bin_set["threshold"],
+                                        "corr_bkg": [False],
                                         "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}") 
                                     }
                             
@@ -134,13 +154,15 @@ class FracOps(object):
 
                         fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
+                                    "chi2_loss": pt_bin_set["chi2_loss"],
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
-                                    "bin_counting": [True, 0.1396, 0.165],
+                                    "bin_counting": pt_bin_set["bin_counting"],
                                     "init_pars":[False,par_dict_bkg],
                                     "fix_pars":fix_pars_set,
                                     "Custom_pars":[False],
                                     "threshold": pt_bin_set["threshold"],
+                                    "corr_bkg": corr_set,
                                     "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
                         
@@ -159,16 +181,22 @@ class FracOps(object):
                         raw_yield_file.Close()
                         data_dir = "hmass"
                         task_name = f"{icut}_hmass_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
+                        if pt_bin_set["corr_bkg"][0]:
+                            corr_set = [True, file,"template",factor]
+                        else:
+                            corr_set = [False]
 
                         fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
+                                    "chi2_loss": pt_bin_set["chi2_loss"],
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
-                                    "bin_counting": [True, 0.1396, 0.165],
+                                    "bin_counting": pt_bin_set["bin_counting"],
                                     "init_pars":[False,pars_dict],
                                     "fix_pars":[True, "nl","nr","alphal","alphar","sigma"],
                                     "Custom_pars":[False],
                                     "threshold": pt_bin_set["threshold"],
+                                    "corr_bkg": corr_set,
                                     "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
                         
@@ -195,7 +223,7 @@ class FracOps(object):
         TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, "Helicity")
  
         for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
-
+            gc.collect()
             pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
             if not pt_bin_set["doing"]:
                 continue
