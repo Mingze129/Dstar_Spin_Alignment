@@ -12,9 +12,12 @@ class McOps(object):
     def __init__(self,config):
         self.config = config
         self.weights_dir = os.path.join(self.config.Directories["InputDir"], "Weight")
-        self.fraction = config.Target["mc_factor"]
+        self.fraction = config.Files["mc_fraction"]
 
     def get_mc_sparse(self, mc_list, frame):
+
+        if frame == "EP":
+            frame = "Random"
         
         Reco_prompt_mc = list()
         Reco_nonprompt_mc = list()
@@ -28,19 +31,19 @@ class McOps(object):
                 print(f"MC file {mc_file} not found")
                 sys.exit(1)
 
-            Reco_prompt = infile.Get(f"task-polarisation-charm-hadrons/hRecoPrompt{frame}")
-            Reco_nonprompt = infile.Get(f"task-polarisation-charm-hadrons/hRecoNonPrompt{frame}")
-            Gen_prompt = infile.Get(f"task-polarisation-charm-hadrons/hGenPrompt{frame}")
-            Gen_nonprompt = infile.Get(f"task-polarisation-charm-hadrons/hGenNonPrompt{frame}")
+            Reco_prompt = infile.Get(f"{self.config.Task_name}/hRecoPrompt{frame}")
+            Reco_nonprompt = infile.Get(f"{self.config.Task_name}/hRecoNonPrompt{frame}")
+            Gen_prompt = infile.Get(f"{self.config.Task_name}/hGenPrompt{frame}")
+            Gen_nonprompt = infile.Get(f"{self.config.Task_name}/hGenNonPrompt{frame}")
 
-            Reco_prompt.GetAxis(8).SetRange(self.config.Analysis["Min_eta_track"],100)
-            Reco_nonprompt.GetAxis(8).SetRange(self.config.Analysis["Min_eta_track"],100)
-            Reco_prompt.GetAxis(9).SetRange(self.config.Analysis["Min_cls_ITS"],100)
-            Reco_nonprompt.GetAxis(9).SetRange(self.config.Analysis["Min_cls_ITS"],100)
-            Reco_prompt.GetAxis(10).SetRange(self.config.Analysis["Min_cls_TPC"],100)
-            Reco_nonprompt.GetAxis(10).SetRange(self.config.Analysis["Min_cls_TPC"],100)
+            Reco_prompt.GetAxis(8).SetRange(self.config.BinSet["Min_eta_track"],100)
+            Reco_nonprompt.GetAxis(8).SetRange(self.config.BinSet["Min_eta_track"],100)
+            Reco_prompt.GetAxis(9).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+            Reco_nonprompt.GetAxis(9).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+            Reco_prompt.GetAxis(10).SetRange(self.config.BinSet["Min_cls_TPC"],100)
+            Reco_nonprompt.GetAxis(10).SetRange(self.config.BinSet["Min_cls_TPC"],100)
             
-            if self.config.Analysis["Mc_reweight"] == False:
+            if self.config.Weights["Do_reweight"] == False:
                 Reco_prompt_mc.append(Reco_prompt)
                 Reco_nonprompt_mc.append(Reco_nonprompt)
                 Gen_prompt_mc.append(Gen_prompt)

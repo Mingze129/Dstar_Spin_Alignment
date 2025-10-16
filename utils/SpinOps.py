@@ -13,14 +13,17 @@ class SpinOps(object):
         self.logger = logger
     def get_rho(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
-        outfile = ROOT.TFile(outfile_name, "UPDATE")
+        file_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
+        outfile = ROOT.TFile(file_name, "UPDATE")
+        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir.cd()
+
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
 
         for frame in frame_list:
 
-            type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
+            type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
@@ -59,12 +62,12 @@ class SpinOps(object):
                         print(f"Raw yield or efficiency histogram not found in {fd_dir.GetName()}")
                         continue
 
-                    raw_fit_plot, raw_fit_rho = self.write_rho_plots(raw_yield_hist)
+                    raw_fit_plot, raw_fit_rho = self.get_rho_plot(raw_yield_hist)
                     raw_fit_plot.Write("raw_yield_fit", ROOT.TObject.kOverwrite)
                     hraw_rho.SetBinContent(bin_num, raw_fit_rho[0])
                     hraw_rho.SetBinError(bin_num, raw_fit_rho[1])
 
-                    corr_fit_plot, corr_fit_pars = self.write_rho_plots(corr_yield_hist)
+                    corr_fit_plot, corr_fit_pars = self.get_rho_plot(corr_yield_hist)
                     corr_fit_plot.Write("corr_yield_fit", ROOT.TObject.kOverwrite)
                     hcorr_rho.SetBinContent(bin_num, corr_fit_pars[0])
                     hcorr_rho.SetBinError(bin_num, corr_fit_pars[1])
@@ -77,11 +80,13 @@ class SpinOps(object):
                     frame_axis = 1
                 elif frame == "Production":
                     frame_axis = 2
+                elif frame == "EP":
+                    frame_axis = 2 # Temporary use production frame for EP frame
                 else:
                     continue
                 simu_dir = pt_bin_dir.mkdir("Simulation","",ROOT.kTRUE)
 
-                simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Target["simulation"]]
+                simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Files["simulation"]]
                 TPrompt = self.get_sparse(simu_file_list, "TPrompt")
                 TNonPrompt = self.get_sparse(simu_file_list, "TNonPrompt")
 
@@ -95,10 +100,10 @@ class SpinOps(object):
                 nonprompt_hist = TNonPrompt.Projection(frame_axis).Clone("nonprompt_hist")
                 nonprompt_hist.Write("NonPrompt_yield", ROOT.TObject.kOverwrite)
 
-                pro_plot, pro_rho = self.write_rho_plots(prompt_hist)
+                pro_plot, pro_rho = self.get_rho_plot(prompt_hist)
                 simu_dir.cd()
                 pro_plot.Write("Prompt_yield_fit", ROOT.TObject.kOverwrite)
-                nonpro_plot, nonpro_rho = self.write_rho_plots(nonprompt_hist)
+                nonpro_plot, nonpro_rho = self.get_rho_plot(nonprompt_hist)
                 simu_dir.cd()
                 nonpro_plot.Write("NonPrompt_yield_fit", ROOT.TObject.kOverwrite)
 
@@ -115,14 +120,17 @@ class SpinOps(object):
 
     def write_simu_rho(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
+        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir.cd()
+
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
 
         for frame in frame_list:
 
-            type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
+            type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
@@ -137,11 +145,13 @@ class SpinOps(object):
                     frame_axis = 1
                 elif frame == "Production":
                     frame_axis = 2
+                elif frame == "EP":
+                    frame_axis = 2 #It should be random axis but we don't have the info in the simulation
                 else:
                     continue
                 simu_dir = pt_bin_dir.mkdir("Simulation","",ROOT.kTRUE)
 
-                simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Target["simulation"]]
+                simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Files["simulation"]]
                 TPrompt = self.get_sparse(simu_file_list, "TPrompt")
                 TNonPrompt = self.get_sparse(simu_file_list, "TNonPrompt")
 
@@ -155,10 +165,10 @@ class SpinOps(object):
                 nonprompt_hist = TNonPrompt.Projection(frame_axis).Clone("nonprompt_hist")
                 nonprompt_hist.Write("NonPrompt_yield", ROOT.TObject.kOverwrite)
 
-                pro_plot, pro_rho = self.write_rho_plots(prompt_hist)
+                pro_plot, pro_rho = self.get_rho_plot(prompt_hist)
                 simu_dir.cd()
                 pro_plot.Write("Prompt_yield_fit", ROOT.TObject.kOverwrite)
-                nonpro_plot, nonpro_rho = self.write_rho_plots(nonprompt_hist)
+                nonpro_plot, nonpro_rho = self.get_rho_plot(nonprompt_hist)
                 simu_dir.cd()
                 nonpro_plot.Write("NonPrompt_yield_fit", ROOT.TObject.kOverwrite)
 
@@ -171,7 +181,7 @@ class SpinOps(object):
   
         outfile.Close()
 
-    def write_rho_plots(self, hraw_yield):
+    def get_rho_plot(self, hraw_yield):
                     
         func = ROOT.TF1("frho00","[0]*((1-[1])+(3*[1]-1)*x*x)",-1,1)
         func.SetParameter(0,1)
@@ -210,14 +220,17 @@ class SpinOps(object):
 
     def extro_rho(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
+        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir.cd()
+
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
 
         for frame in frame_list:
 
-            type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
+            type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
@@ -331,15 +344,18 @@ class SpinOps(object):
         
     def plot_rho(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
+        ana_dir = outfile.Get(self.config.Analysis["Ana_name"])
+        ana_dir.cd()
+
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
 
         for frame in frame_list:
 
             self.logger.info(f"Plotting rho vs pt in {frame} frame")
-            type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
+            type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
             hprompt_rho = ROOT.TH1F("hprompt_rho","hprompt_rho;fd_score;#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))

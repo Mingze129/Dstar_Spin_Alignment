@@ -19,8 +19,9 @@ class FitOps(object):
         self.logger = logger
         self.config = config
         self.out_dir = os.path.join(self.config.Directories["OutputDir"], self.config.Analysis["Task_Name"])
-        if config.Analysis["Cre_fit_root"]:
-            fit_root = ROOT.TFile(os.path.join(os.path.join(self.out_dir, "Mass-Fit"), 'AnalysisFit.root'), "RECREATE")
+        if config.Cre_fit_root:
+            self.fit_file = os.path.join(os.path.join(self.out_dir, "Mass-Fit"), self.config.Analysis["Ana_name"]+'_Fit.root')
+            fit_root = ROOT.TFile(self.fit_file, "RECREATE")
             fit_root.Close()
         self.ax_title = r"$M(\mathrm{K\pi\pi}) - M(\mathrm{K\pi})$ GeV$/c^2$"
         self.func_pars = {
@@ -41,7 +42,12 @@ class FitOps(object):
     def get_raw_yield(self):
 
         outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
+        infile_name = os.path.join(self.out_dir, "Analysis-root", "Data_And_Efficiency.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", "RawYield_Extraction.root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
+        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir.cd()
+
         pt_edges = self.config.BinSet["pt_bin_edges"]  
         frame_list = self.config.Analysis["Framework"]
         ratio_pars = ["sigma","alphal","alphar"]
@@ -52,7 +58,7 @@ class FitOps(object):
 
             self.logger.info(f"Start fitting raw-yield for {frame} frame...")
 
-            type_dir = outfile.mkdir(frame,"",ROOT.kTRUE)
+            type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
@@ -118,8 +124,8 @@ class FitOps(object):
                         par_dict_bkg = fd_bin_pars
                         init_set = [False,par_dict_bkg]
                         pars_set = pt_bin_set["fix_pars"]
-                        
-                    data_fd_dir = os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
+
+                    data_fd_dir = os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
                     task_name = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}"
                     if pt_bin_set["corr_bkg"][0]:
                         factor_hist = pt_bin_dir.Get("hist_Norm_cost")
@@ -142,7 +148,7 @@ class FitOps(object):
                                 "out_dir": self.out_dir
                             }
                     
-                    raw_yield, raw_yield_error, par_dict_data = self.fit_inv_mass(outfile_name, data_fd_dir, task_name, fit_set)
+                    raw_yield, raw_yield_error, par_dict_data = self.fit_inv_mass(infile_name, data_fd_dir, task_name, fit_set)
                     
                     if ifd == 0:
                         fd_bin_pars.update(par_dict_data)
@@ -160,11 +166,8 @@ class FitOps(object):
 
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
-                        cos_dir = fd_dir.mkdir(f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", "", ROOT.kTRUE)
-                        cos_dir.cd()
-
                         fit_task = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}"
-                        data_dir = os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}" , f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_cos_{cos_min_edge}_{cos_max_edge}")
+                        data_dir = os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}" , f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_cos_{cos_min_edge}_{cos_max_edge}")
 
                         if ifd == 0:
                             init_pars_set = [False, par_dict_data]
@@ -201,7 +204,7 @@ class FitOps(object):
                                     "corr_bkg": corr_set,
                                     "out_dir": self.out_dir
                                 }
-                        raw_yield , raw_yield_error, par_dict_cos = self.fit_inv_mass(outfile_name, data_dir,  fit_task, fit_set)
+                        raw_yield , raw_yield_error, par_dict_cos = self.fit_inv_mass(infile_name, data_dir,  fit_task, fit_set)
                         if ifd == 0:
                             cos_dict_list.append(par_dict_cos)
 
@@ -212,7 +215,7 @@ class FitOps(object):
 
         outfile.Close()
                  
-    def fit_inv_mass(self, outfile_name, data_dir,  task_name , fit_set):
+    def fit_inv_mass(self, infile_name, data_dir,  task_name , fit_set):
 
         os.makedirs(os.path.join(fit_set["out_dir"], "Mass-Fit/Figure"), exist_ok=True)
         figure_dir = os.path.join(fit_set["out_dir"], "Mass-Fit/Figure")
@@ -224,7 +227,7 @@ class FitOps(object):
                                         limits=fit_set["mass_range"],
                                         rebin=fit_set["rebin"])
 
-        data_hdl = DataHandler(data=outfile_name, 
+        data_hdl = DataHandler(data=infile_name, 
                                 histoname=data_dir,
                                 limits=fit_set["mass_range"],
                                 rebin=fit_set["rebin"])       
@@ -312,8 +315,8 @@ class FitOps(object):
                 if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
                     fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
                     fit_root.Close()
-                fitter.dump_to_root(filename = f"{os.path.join(fit_dir, 'AnalysisFit.root')}", option="update",
-                                        suffix=f"_{task_name}_bkg")
+                fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.fit_file)}", option="update",
+                                        suffix=f"_{task_name}")
             except:
                 fig , axs= fitter.plot_mass_fit(style="ATLAS", show_extra_info=False,
                                             figsize=(8, 8), extra_info_loc=["upper left", "right"],
@@ -322,8 +325,11 @@ class FitOps(object):
                 if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
                     fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
                     fit_root.Close()
-                # fitter.dump_to_root(filename = f"{os.path.join(fit_dir, 'AnalysisFit.root')}", option="update",
-                                        # suffix=f"_{task_name}_bkg")
+                try:
+                    fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.fit_file)}", option="update",
+                                        suffix=f"_{task_name}")
+                except:
+                    self.logger.error(f"Failed to save fit results for {task_name}!")
         else:
             try:
                 fig , axs= fitter.plot_mass_fit(style="ATLAS", show_extra_info=False,
