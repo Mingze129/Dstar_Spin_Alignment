@@ -5,32 +5,36 @@ working_dir = "/home/mingze/work/dstar/Dstar_Spin_Alignment"
 
 Analysis = {
     "Task_Name": "PbPb_Analysis",
-    "Ana_name": "Ana_version_3",
-    "Framework": ["Helicity", "EP"]
+    "Ana_name": "pp_test",
+    # "Framework": ["Helicity", "EP"]
+    "Framework": ["Helicity"]
 }
 
 Doing = {
+    "Cut_Variations": False,
     "Data_And_Efficiency": True,
     "Signal_Extraction": True,
-    "Rho_Extraction": True,
+    "Rho_Extraction": False,
     "3-5":     False,
     "5-7":     False,
     "7-10":    False,
-    "10-20":   True,
-    "20-30":   False,
+    "10-20":   False,
+    "20-30":   True,
     "30-50":   False,
     "50-100":  False
 }
 
 Files = {
     "data": [
+            #  "AnalysisResults_LHC22o_apass7.root",
+            #  "AnalysisResults_LHC23_apass4_part1.root",
+            #  "AnalysisResults_LHC23_apass4_part2.root",
+            #  "AnalysisResults_LHC23_apass4_part3.root",
+            #  "AnalysisResults_LHC23_apass4_part4.root"
              "AnalysisResults_LHC23_apass4_PbPb_489048.root"
     ],
     "mc": [
-        #    "AnalysisResults_mc_LHC24g5_22apass7_ptsmear-1p5_vsPhi.root"
-        #    "AnalysisResults_mc_LHC24h1_23apass4_ptsmear-1p5_wDCA-1p1.root",
-        #    "AnalysisResults_mc_LHC24i1_pthard_22apass7_ptsmear-1p5_vsPhi.root",
-        #    "AnalysisResults_mc_LHC24i2_pthard_23apass4_ptsmear-1p5_vsPhi.root" 
+            #  "AnalysisResults_mc_merged_pt-30-cut_vsPhi.root"
            "AnalysisResults_mc_LHC25a2_ptsmear-1p5_vsPhi_PbPb.root"     
     ],
     "mc_fraction": [1.0], # if multiple mc files, please provide the fraction of each file
@@ -145,8 +149,8 @@ BinSet = {
             "max": 30,
             "D0Mass": [1.74,1.99],
             "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
-            "fd_edges": [0.0,0.15,0.4,0.8,1.0],
-            "Bkg_cut": 0.06,
+            "fd_edges": [0.0, 1.0],
+            "Bkg_cut": 0.4,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopow"],
             "chi2_loss": False,
@@ -262,6 +266,7 @@ Do_sys_uncer = {
 }
 
 Task_name = "hf-task-charm-polarisation"
+# Task_name = "task-polarisation-charm-hadrons"
 Data_keep_frame = ["Helicity", "EP"]
 Data_keep_axis = np.array([0, 4, 5, 6, 7, 8, 9, 10], dtype=np.int32) # mass, mD0, cosstar, mlbkg, mlfd, mintrack, Nits, Ntpc
 Force_Reducing = False

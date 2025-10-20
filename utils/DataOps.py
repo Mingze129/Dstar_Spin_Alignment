@@ -15,7 +15,7 @@ class DataOps(object):
     def __init__(self, config, logger):
         self.config = config
         self.logger = logger
-        self.out_dir = os.path.join(self.config.Directories["OutputDir"],self.config.Analysis["Task_Name"])
+        self.out_dir = os.path.join(self.config.Directories["OutputDir"], self.config.Analysis["Task_Name"])
         self.logger.info("Locating work dir...")
         os.makedirs(self.out_dir + "/Analysis-root", exist_ok=True)
         os.makedirs(self.out_dir + "/Cut-variation", exist_ok=True)
@@ -192,7 +192,7 @@ class DataOps(object):
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "Data_And_Efficiency.root")
 
         outfile = ROOT.TFile(outfile_name, "UPDATE")
-        ana_dir = outfile.Get(self.config.Analysis["Ana_name"])
+        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
         ana_dir.cd()
 
         frame_list = self.config.Analysis["Framework"]

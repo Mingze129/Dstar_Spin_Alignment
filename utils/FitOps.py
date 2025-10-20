@@ -217,9 +217,10 @@ class FitOps(object):
                  
     def fit_inv_mass(self, infile_name, data_dir,  task_name , fit_set):
 
-        os.makedirs(os.path.join(fit_set["out_dir"], "Mass-Fit/Figure"), exist_ok=True)
-        figure_dir = os.path.join(fit_set["out_dir"], "Mass-Fit/Figure")
+        figure_dir = os.path.join(fit_set["out_dir"], "Mass-Fit", self.config.Analysis["Ana_name"]+"-Figure")
         fit_dir = os.path.join(fit_set["out_dir"], "Mass-Fit")
+        os.makedirs(figure_dir, exist_ok=True)
+        os.makedirs(fit_dir, exist_ok=True)
 
         if fit_set["corr_bkg"][0]:
             corr_bkg_hdl = DataHandler(data=fit_set["corr_bkg"][1], 
@@ -312,8 +313,8 @@ class FitOps(object):
                                             figsize=(8, 8), extra_info_loc=["upper left", "right"],
                                             axis_title=self.ax_title)
                 fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
-                if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
-                    fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
+                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root'), "RECREATE")
                     fit_root.Close()
                 fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.fit_file)}", option="update",
                                         suffix=f"_{task_name}")
@@ -322,8 +323,8 @@ class FitOps(object):
                                             figsize=(8, 8), extra_info_loc=["upper left", "right"],
                                             axis_title=self.ax_title)
                 fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
-                if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
-                    fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
+                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root'), "RECREATE")
                     fit_root.Close()
                 try:
                     fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.fit_file)}", option="update",
@@ -336,8 +337,8 @@ class FitOps(object):
                                                 figsize=(8, 8), extra_info_loc=["upper left", "right"],
                                                 axis_title=self.ax_title)
                 fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
-                if not os.path.exists(os.path.join(fit_dir, 'AnalysisFit.root')):
-                    fit_root = ROOT.TFile(os.path.join(fit_dir, 'AnalysisFit.root'), "RECREATE")
+                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root'), "RECREATE")
                     fit_root.Close()
                 self.logger.error(f"Fit for {task_name} is not converged!")
             except:

@@ -11,6 +11,7 @@ class SpinOps(object):
         self.config = config
         self.out_dir = os.path.join(self.config.Directories["OutputDir"], self.config.Analysis["Task_Name"])
         self.logger = logger
+
     def get_rho(self):
 
         file_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
@@ -425,3 +426,135 @@ class SpinOps(object):
             
         return sparse[0]
         
+    def read_frac(self):
+        
+        pt_edges = self.config.BinSet["pt_bin_edges"]  
+        infile_eff_name = os.path.join(self.out_dir, "Analysis-root", "Data_And_Efficiency.root")
+        infile_yield_name = os.path.join(self.out_dir, "Analysis-root", "RawYield_Extraction.root")
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
+        # self.config.Analysis["Ana_name"]+".root")
+
+        infile_eff = ROOT.TFile(infile_eff_name, "READ")
+        ana_dir_eff = infile_eff.Get(self.config.Analysis["Ana_name"])
+        infile_yield = ROOT.TFile(infile_yield_name, "READ")
+        ana_dir_yield = infile_yield.Get(self.config.Analysis["Ana_name"])
+        outfile = ROOT.TFile(outfile_name, "UPDATE")
+        ana_dir_out = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir_out.cd()
+
+        frame_list = self.config.Analysis["Framework"]
+        for frame in frame_list:
+
+            self.logger.info(f"Reading fraction of {frame} framework...")
+            type_dir_eff = ana_dir_eff.mkdir(frame,"",ROOT.kTRUE)
+            type_dir_yield = ana_dir_yield.Get(frame)
+            type_dir_out = ana_dir_out.mkdir(frame,"",ROOT.kTRUE)
+            type_dir_out.cd()
+
+            for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+
+                pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
+                if not pt_bin_set["doing"]:
+                    continue
+                self.logger.info(f"    Working in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
+
+                pt_bin_dir_eff = type_dir_eff.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
+                pt_bin_dir_yield = type_dir_yield.Get(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}")
+                pt_bin_dir_out = type_dir_out.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
+                pt_bin_dir_out.cd()
+
+                cos_edges = pt_bin_set["cos_bin_edges"]
+                fd_edges = pt_bin_set["fd_edges"]
+                if len(fd_edges) > 2:
+                    fd_min_edges = [0.0]+fd_edges[:-1]
+                    fd_max_edges = [1.0]+fd_edges[1:]
+                else:
+                    fd_min_edges = fd_edges[:-1]
+                    fd_max_edges = fd_edges[1:]
+
+                heff_prompt_fd = pt_bin_dir_eff.Get("hEff_prompt_fd")
+                heff_nonprompt_fd = pt_bin_dir_eff.Get(f"hEff_nonprompt_fd")
+
+                hfrac_np_fd = heff_prompt_fd.Clone("hfrac_np_fd")
+
+                frac_file_dir = os.path.join(self.out_dir,f"Cut-variation/{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction","CutVar_"+self.config.Analysis['Ana_name']+".root")
+                frac_file = ROOT.TFile(frac_file_dir,"READ")
+                corr_yield_prompt = frac_file.Get("hCorrYieldsPrompt")
+                corr_yield_nonprompt = frac_file.Get("hCorrYieldsNonPrompt")
+                Cov_prompt_nonprompt = frac_file.Get("hCovPromptNonPrompt")
+
+                hEff_total = pt_bin_dir_eff.Get("fd_0.00_1.00/hEff_total_cos")
+                
+                for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
+
+                    if len(fd_edges) > 2:
+                        bin_num = ifd
+                    else:
+                        bin_num = ifd+1
+
+                    fd_dir_eff = pt_bin_dir_eff.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
+                    fd_dir_yield = pt_bin_dir_yield.Get(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}")
+                    fd_dir_out = pt_bin_dir_out.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
+                    fd_dir_out.cd()
+
+                    raw_np_frc, raw_np_frc_error = self.get_nonprompt_frac(heff_prompt_fd.GetBinContent(bin_num),
+                                                                heff_nonprompt_fd.GetBinContent(bin_num),
+                                                                corr_yield_prompt.GetBinContent(1),
+                                                                corr_yield_nonprompt.GetBinContent(1),
+                                                                corr_yield_prompt.GetBinError(1),
+                                                                corr_yield_nonprompt.GetBinError(1),
+                                                                Cov_prompt_nonprompt.GetBinContent(1))
+ 
+                    hfrac_np_fd.SetBinContent(bin_num, raw_np_frc)
+                    hfrac_np_fd.SetBinError(bin_num, raw_np_frc_error)
+
+                    hraw_yield = fd_dir_yield.Get("hraw_yield")
+                    hEff_cos = fd_dir_eff.Get("hEff_total_cos")
+                    # hp_eff_cos = fd_dir.Get("hEff_prompt_cos")
+                    # hnp_eff_cos = fd_dir.Get("hEff_nonprompt_cos")
+                    hfrac_cos = hraw_yield.Clone("hfrac_cos")
+
+                    for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
+
+                        hfrac_cos.SetBinContent(icos+1, raw_np_frc)
+                        hfrac_cos.SetBinError(icos+1,raw_np_frc_error)
+  
+                    # Corrected yield with efficiency in different fd bin
+                    # hcorr_yield_cos = hraw_yield.Clone("hcorr_yield_cos")
+                    # hcorr_yield_cos.Divide(hEff_cos)
+                    # hcorr_yield_cos.Write("hcorr_yield_fd",ROOT.TObject.kOverwrite)
+
+                    # hEff_frac , hcorr_yield_frac = self.get_total_eff(hraw_yield,hfrac_cos,hp_eff_cos,hnp_eff_cos)
+                    hcorr_yield_total = hraw_yield.Clone("hcorr_yield_total")
+                    hcorr_yield_total.Divide(hEff_total)
+                    hcorr_yield_total.GetYaxis().SetTitle("Corrected Yield")
+                    hcorr_yield_total.SetTitle("Corrected Yield")
+
+                    hEff_cos.Write("hEff_fdbin",ROOT.TObject.kOverwrite)
+                    hEff_total.Write("hEff_total",ROOT.TObject.kOverwrite)
+                    hraw_yield.Write("hraw_yield",ROOT.TObject.kOverwrite)
+                    hcorr_yield_total.Write("hcorr_yield",ROOT.TObject.kOverwrite)
+
+                pt_bin_dir_out.cd()
+                hfrac_np_fd.Write("hfrac",ROOT.TObject.kOverwrite)
+
+        infile_eff.Close()
+        infile_yield.Close()
+        outfile.Close()
+
+    def get_nonprompt_frac(self, effacc_p,effacc_np,corry_p,corry_np,cov_pp,cov_npnp,cov_pnp):
+        
+        rawy_p = effacc_p * corry_p
+        rawy_np = effacc_np * corry_np
+        f_np = rawy_np / (rawy_p + rawy_np)
+    
+        # derivatives of prompt fraction wrt corr yields
+        d_p = (effacc_p * (rawy_p + rawy_np) - effacc_p**2 * corry_p) / (rawy_p + rawy_np) ** 2
+        d_np = -effacc_np * rawy_p / (rawy_p + rawy_np) ** 2
+    
+        f_p_unc = np.sqrt(
+            d_p**2 * cov_pp**2
+            + d_np**2 * cov_npnp**2
+            + 2 * d_p *d_np* cov_pnp
+        )
+        return f_np, f_p_unc
