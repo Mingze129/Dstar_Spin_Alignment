@@ -60,30 +60,31 @@ class FracOps(object):
                         self.logger.error(f"Error deleting file {file_path}: {e}")
 
             Tdata = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
-            Tbkg = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
+            # Tbkg = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
 
             D0_min = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
             D0_max = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
             Tdata.GetAxis(1).SetRange(D0_min,D0_max)
-            Tbkg.GetAxis(1).SetRange(D0_min,D0_max)
+            # Tbkg.GetAxis(1).SetRange(D0_min,D0_max)
 
-            Tdata.GetAxis(5).SetRange(self.config.Analysis["Min_eta_track"],100)
-            Tbkg.GetAxis(5).SetRange(self.config.Analysis["Min_eta_track"],100)
-            Tdata.GetAxis(6).SetRange(self.config.Analysis["Min_cls_ITS"],100)
-            Tbkg.GetAxis(6).SetRange(self.config.Analysis["Min_cls_ITS"],100)
-            Tdata.GetAxis(7).SetRange(self.config.Analysis["Min_cls_TPC"],100)
-            Tbkg.GetAxis(7).SetRange(self.config.Analysis["Min_cls_TPC"],100)
+            Tdata.GetAxis(5).SetRange(self.config.BinSet["Min_eta_track"],100)
+            Tdata.GetAxis(6).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+            Tdata.GetAxis(7).SetRange(self.config.BinSet["Min_cls_TPC"],100)
+
+            # Tbkg.GetAxis(5).SetRange(self.config.BinSet["Min_eta_track"],100)
+            # Tbkg.GetAxis(6).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+            # Tbkg.GetAxis(7).SetRange(self.config.BinSet["Min_cls_TPC"],100)
 
             bkg_max = Tdata.GetAxis(3).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
             Tdata.GetAxis(3).SetRange(0, bkg_max)
-            Tbkg.GetAxis(3).SetRange(0, bkg_max)
+            # Tbkg.GetAxis(3).SetRange(0, bkg_max)
 
             fd_edges = pt_bin_set["var_fd_range"]
 
             pars_dict = {}
 
             if pt_bin_set["corr_bkg"][0]:
-                factor_dir = os.path.join("/home/mingze/work/dstar/Dstar_Spin_Alignment", "macro/part_study/templates_corrbkg_pt30_50.root")
+                factor_dir = os.path.join("/home/mingze/work/dstar/Dstar_Spin_Alignment", "Input/Part_study/templates_corrbkg_pt30_50.root")
                 factor_file = ROOT.TFile(factor_dir,"READ")
                 factor_hist = factor_file.Get("hist_factor_cost")
                 factor= factor_hist.GetBinContent(1)
@@ -97,12 +98,12 @@ class FracOps(object):
 
                 cos_max = Tdata.GetAxis(2).FindBin(1-1e-6)
                 Tdata.GetAxis(2).SetRange(0,cos_max)
-                Tbkg.GetAxis(2).SetRange(0,cos_max)
+                # Tbkg.GetAxis(2).SetRange(0,cos_max)
 
                 fd_min = Tdata.GetAxis(4).FindBin(fd_min_edge+1e-6)
                 fd_max = Tdata.GetAxis(4).FindBin(1.0-1e-6)
                 Tdata.GetAxis(4).SetRange(fd_min, fd_max)
-                Tbkg.GetAxis(4).SetRange(fd_min, fd_max)
+                # Tbkg.GetAxis(4).SetRange(fd_min, fd_max)
 
                 self.logger.info(f"Cut-variation, icut = {icut}, fd_min_edge = {fd_min_edge:.3f}")
                 try:
@@ -118,9 +119,9 @@ class FracOps(object):
 
                     if icut == 0 :
                         
-                        hbkg = Tbkg.Projection(0).Clone("hbkg")
+                        # hbkg = Tbkg.Projection(0).Clone("hbkg")
                         raw_yield_file.cd()
-                        hbkg.Write("",ROOT.TObject.kOverwrite)
+                        # hbkg.Write("",ROOT.TObject.kOverwrite)
                         raw_yield_file.Close()
                         if pt_bin_set["corr_bkg"][0]:
                             corr_set = [True, file,"template",factor]
