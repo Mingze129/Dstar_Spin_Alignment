@@ -53,7 +53,7 @@ if config.Doing["Data_And_Efficiency"]:
     data, mc = data_ops.load_data()
     data_ops.write_data(data)
     data_ops.write_mc(mc)
-    # data_ops.write_corr_fit() # Write for the correlated background
+    data_ops.write_corr_fit() # Writing the correlated background template
 
 if config.Doing["Signal_Extraction"]:
     logger.info("Initiating fit operator...")

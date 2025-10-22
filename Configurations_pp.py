@@ -4,10 +4,10 @@ import numpy as np
 working_dir = "/home/mingze/work/dstar/Dstar_Spin_Alignment"
 
 Analysis = {
-    "Task_Name": "PbPb_Analysis",
-    "Ana_name": "PbPb",
-    "Framework": ["Helicity", "EP"]
-    # "Framework": ["Helicity", "Production"]
+    "Task_Name": "pp_Analysis",
+    "Ana_name": "pp_baseline",
+    # "Framework": ["Helicity", "EP"]
+    "Framework": ["Helicity", "Production"]
 }
 
 Doing = {
@@ -26,10 +26,16 @@ Doing = {
 
 Files = {
     "data": [
-             "AnalysisResults_LHC23_apass4_PbPb_489048.root"
+             "AnalysisResults_LHC22o_apass7.root",
+             "AnalysisResults_LHC23_apass4_part1.root",
+             "AnalysisResults_LHC23_apass4_part2.root",
+             "AnalysisResults_LHC23_apass4_part3.root",
+             "AnalysisResults_LHC23_apass4_part4.root"
+            #  "AnalysisResults_LHC23_apass4_PbPb_489048.root"
     ],
     "mc": [
-           "AnalysisResults_mc_LHC25a2_ptsmear-1p5_vsPhi_PbPb.root"     
+             "AnalysisResults_mc_merged_pt-30-cut_vsPhi.root"
+        #    "AnalysisResults_mc_LHC25a2_ptsmear-1p5_vsPhi_PbPb.root"     
     ],
     "mc_fraction": [1.0], # if multiple mc files, please provide the fraction of each file
     "simulation": [
@@ -75,7 +81,7 @@ BinSet = {
             "D0Mass": [1.74,1.99],
             "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.2,0.4,0.8,1.0],
-            "Bkg_cut": 0.06,
+            "Bkg_cut": 0.2,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
@@ -98,7 +104,7 @@ BinSet = {
             "D0Mass": [1.74,1.99],
             "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.15,0.4,0.8,1.0],
-            "Bkg_cut": 0.06,
+            "Bkg_cut": 0.2,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
@@ -121,7 +127,7 @@ BinSet = {
             "D0Mass": [1.74,1.99],
             "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.15,0.4,0.8,1.0],
-            "Bkg_cut": 0.06,
+            "Bkg_cut": 0.4,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
@@ -259,7 +265,8 @@ Do_sys_uncer = {
     }
 }
 
-Task_name = "hf-task-charm-polarisation"
+# Task_name = "hf-task-charm-polarisation"
+Task_name = "task-polarisation-charm-hadrons"
 Data_keep_frame = ["Helicity", "Production"]
 Data_keep_axis = np.array([0, 4, 5, 6, 7, 8, 9, 10], dtype=np.int32) # mass, mD0, cosstar, mlbkg, mlfd, mintrack, Nits, Ntpc
 Force_Reducing = False

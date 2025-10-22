@@ -405,6 +405,8 @@ class SpinOps(object):
             leg.SetBorderSize(0)
             leg.Draw("same")
 
+            hprompt_rho.Write(f"hprompt_rho_{frame}",ROOT.TObject.kOverwrite)
+            hnonprompt_rho.Write(f"hnonprompt_rho_{frame}",ROOT.TObject.kOverwrite)
             canves.Write(f"rho{frame}",ROOT.TObject.kOverwrite)
  
     def get_sparse(self, file_list, name):

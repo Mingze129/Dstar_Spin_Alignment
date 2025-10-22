@@ -84,7 +84,7 @@ class FracOps(object):
             pars_dict = {}
 
             if pt_bin_set["corr_bkg"][0]:
-                factor_dir = os.path.join("/home/mingze/work/dstar/Dstar_Spin_Alignment", "macro/part_study/templates_corrbkg_pt30_50.root")
+                factor_dir = os.path.join("/home/mingze/work/dstar/Dstar_Spin_Alignment", "Input/Part_study/templates_corrbkg_pt30_50.root")
                 factor_file = ROOT.TFile(factor_dir,"READ")
                 factor_hist = factor_file.Get("hist_factor_cost")
                 factor= factor_hist.GetBinContent(1)

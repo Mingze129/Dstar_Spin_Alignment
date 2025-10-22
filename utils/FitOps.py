@@ -44,7 +44,10 @@ class FitOps(object):
         outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
         infile_name = os.path.join(self.out_dir, "Analysis-root", "Data_And_Efficiency.root")
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "RawYield_Extraction.root")
+
+        infile = ROOT.TFile(infile_name, "READ")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
+        in_ana_dir = infile.Get(self.config.Analysis["Ana_name"])
         ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
         ana_dir.cd()
 
@@ -58,6 +61,7 @@ class FitOps(object):
 
             self.logger.info(f"Start fitting raw-yield for {frame} frame...")
 
+            in_frame_dir = in_ana_dir.Get(frame)
             type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
@@ -79,6 +83,7 @@ class FitOps(object):
                 
                 if not pt_bin_set["doing"]:
                     continue
+                in_pt_dir = in_frame_dir.Get(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}")
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
 
                 fd_bin_pars = {}
@@ -128,9 +133,9 @@ class FitOps(object):
                     data_fd_dir = os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
                     task_name = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}"
                     if pt_bin_set["corr_bkg"][0]:
-                        factor_hist = pt_bin_dir.Get("hist_Norm_cost")
+                        factor_hist = in_pt_dir.Get("hist_Norm_cost")
                         fd_factor = factor_hist.GetBinContent(1)
-                        corr_set = pt_bin_set["corr_bkg"]+[outfile_name]+[os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hist_corrbkg_integral_cos")]+[fd_factor]
+                        corr_set = pt_bin_set["corr_bkg"] + [infile_name] + [os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hist_corrbkg_integral_cos")] + [fd_factor]
                     else:
                         corr_set = [False]
 
@@ -183,10 +188,10 @@ class FitOps(object):
                         # cos_dict_pars["alphal"] = cos_alphal_pars.GetBinContent(icos+1)*par_dict_data["alphal"]
                         # cos_dict_pars["alphar"] = cos_alphar_pars.GetBinContent(icos+1)*par_dict_data["alphar"]
                         if pt_bin_set["corr_bkg"][0]:
-                            factor_func = pt_bin_dir.Get("decay_plateau_func")
+                            factor_func = in_pt_dir.Get("decay_plateau_func")
                             cos_bin_center = (cos_min_edge+cos_max_edge)/2
                             fd_factor = factor_func.Eval(cos_bin_center)
-                            corr_set = pt_bin_set["corr_bkg"]+[outfile_name]+[os.path.join(frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", f"hist_corrbkg_template")]+[fd_factor]
+                            corr_set = pt_bin_set["corr_bkg"] + [infile_name] + [os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", f"hist_corrbkg_template")] + [fd_factor]
                         else:
                             corr_set = [False]
 

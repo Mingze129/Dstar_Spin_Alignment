@@ -749,8 +749,9 @@ class DataOps(object):
 
     def write_corr_fit(self):
         
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", "RawYield_Extraction.root")
-
+        pt_edges = self.config.BinSet["pt_bin_edges"]
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", "Data_And_Efficiency.root")
+        
         outfile = ROOT.TFile(outfile_name, "UPDATE")
         ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
         ana_dir.cd()
@@ -761,13 +762,17 @@ class DataOps(object):
             frame_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             frame_dir.cd()
 
-            for ipt, (pt_min,pt_max) in enumerate(zip([30,50],[50,100])):
-                factor_dir = os.path.join(self.out_dir, f"../../macro/part_study/templates_corrbkg_pt30_50.root ")
+            for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+
+                if 30 > 10:
+                    factor_dir = os.path.join(self.out_dir, f"../../Input/Part_study/templates_corrbkg_pt30_50.root ")
+                else:
+                    factor_dir = os.path.join(self.out_dir, f"../../Input/Part_study/templates_corrbkg_pt{pt_min_edge}_{pt_max_edge}.root")
                 factor_file = ROOT.TFile(factor_dir, "READ")
                 factor_hist = factor_file.Get("hist_factor_cost")
 
-                pt_dir = frame_dir.Get(f"pt_{pt_min}_{pt_max}")
-                pt_dir.cd()
+                pt_bin_dir = frame_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
+                pt_bin_dir.cd()
 
                 factor_hist.Write(f"hist_Norm_cost",ROOT.TObject.kOverwrite)
 
@@ -816,19 +821,20 @@ class DataOps(object):
                 decay_plateau_func.Write(f"decay_plateau_func", ROOT.TObject.kOverwrite)
 
                 factor_file.Close()
-                factor_dir = os.path.join(self.out_dir, f"../../macro/part_study/templates_corrbkg_pt{pt_min}_{pt_max}.root")
+                factor_dir = os.path.join(self.out_dir, f"../../Input/Part_study/templates_corrbkg_pt{pt_min_edge}_{pt_max_edge}.root")
                 factor_file = ROOT.TFile(factor_dir, "READ")
 
-                cos_edges = self.config.BinSet["pt_bin_set"][f"{pt_min}-{pt_max}"]["cos_bin_edges"]
+                cos_edges = self.config.BinSet["pt_bin_set"][f"{pt_min_edge}-{pt_max_edge}"]["cos_bin_edges"]
                 #define a empty histogram to store the integral of the fit function
-                hist_corrbkg_integral_cos = factor_file.Get(f"hist_corrbkg_pt_{pt_min}_{pt_max}_cost_{cos_edges[0]:.1f}_{cos_edges[1]:.1f}")
+                hist_corrbkg_integral_cos = factor_file.Get(f"hist_corrbkg_pt_{pt_min_edge}_{pt_max_edge}_cost_{cos_edges[0]:.1f}_{cos_edges[1]:.1f}")
 
                 for icos, (cos_min_edge, cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
-                    cos_dir = pt_dir.Get(f"fd_0.00_1.00/cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}")
+                    cos_dir = pt_bin_dir.Get(f"fd_0.00_1.00/cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}")
+                    print(pt_bin_dir)
                     cos_dir.cd()
 
-                    template_hist = factor_file.Get(f"hist_corrbkg_pt_{pt_min}_{pt_max}_cost_{cos_min_edge:.1f}_{cos_max_edge:.1f}")
+                    template_hist = factor_file.Get(f"hist_corrbkg_pt_{pt_min_edge}_{pt_max_edge}_cost_{cos_min_edge:.1f}_{cos_max_edge:.1f}")
                     template_hist.Write(f"hist_corrbkg_template", ROOT.TObject.kOverwrite)
 
                     if icos == 0:
@@ -836,7 +842,7 @@ class DataOps(object):
                     else:
                         hist_corrbkg_integral_cos.Add(template_hist)
 
-                fd_dir = pt_dir.Get(f"fd_0.00_1.00")
+                fd_dir = pt_bin_dir.Get(f"fd_0.00_1.00")
                 fd_dir.cd()
                 hist_corrbkg_integral_cos.Write(f"hist_corrbkg_integral_cos", ROOT.TObject.kOverwrite)
 
