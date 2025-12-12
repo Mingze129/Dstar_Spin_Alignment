@@ -33,7 +33,10 @@ class FitOps(object):
                            "alphar": 1.5
                            },
             "expopowext": ["power","c1","c2","c3"],
+            "gaussian": ["mu","sigma"],
             "expopow": ["lam"],
+            "doublegaus": ["frac","mu","sigma1","sigma2"],
+            "crystalball": ["alpha","n","mu","sigma"],
             "doublecb": ["frac","mu","sigma","alphal","alphar","nl","nr"],
             "nosignal": [],
             "nobkg": []
@@ -159,7 +162,7 @@ class FitOps(object):
                         fd_bin_pars.update(par_dict_data)
 
                     cos_bin = np.array(cos_edges)
-                    hraw_yield = ROOT.TH1F(f"hraw_yield", "hraw_yield_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge};Cos#vartheta*;raw_yield", len(cos_bin)-1, cos_bin)
+                    hraw_yield = ROOT.TH1F(f"hraw_yield", f"hraw_yield_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge};Cos#vartheta*;raw_yield", len(cos_bin)-1, cos_bin)
                     
                     # cos_sigma_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/sigma_total_cos")
                     # cos_alphal_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/alphal_total_cos")

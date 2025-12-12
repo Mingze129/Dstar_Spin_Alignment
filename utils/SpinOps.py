@@ -77,46 +77,6 @@ class SpinOps(object):
                 hraw_rho.Write("", ROOT.TObject.kOverwrite)
                 hcorr_rho.Write("", ROOT.TObject.kOverwrite)
 
-                if frame == "Helicity":
-                    frame_axis = 1
-                elif frame == "Production":
-                    frame_axis = 2
-                elif frame == "EP":
-                    frame_axis = 2 # Temporary use production frame for EP frame
-                else:
-                    continue
-                simu_dir = pt_bin_dir.mkdir("Simulation","",ROOT.kTRUE)
-
-                simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Files["simulation"]]
-                TPrompt = self.get_sparse(simu_file_list, "TPrompt")
-                TNonPrompt = self.get_sparse(simu_file_list, "TNonPrompt")
-
-                pt_min = TPrompt.GetAxis(0).FindBin(pt_min_edge+1e-6)
-                pt_max = TPrompt.GetAxis(0).FindBin(pt_max_edge-1e-6)
-                TPrompt.GetAxis(0).SetRange(pt_min, pt_max)
-                TNonPrompt.GetAxis(0).SetRange(pt_min, pt_max)
-
-                prompt_hist = TPrompt.Projection(frame_axis).Clone("prompt_hist")
-                prompt_hist.Write("Prompt_yield", ROOT.TObject.kOverwrite)
-                nonprompt_hist = TNonPrompt.Projection(frame_axis).Clone("nonprompt_hist")
-                nonprompt_hist.Write("NonPrompt_yield", ROOT.TObject.kOverwrite)
-
-                pro_plot, pro_rho = self.get_rho_plot(prompt_hist)
-                simu_dir.cd()
-                pro_plot.Write("Prompt_yield_fit", ROOT.TObject.kOverwrite)
-                nonpro_plot, nonpro_rho = self.get_rho_plot(nonprompt_hist)
-                simu_dir.cd()
-                nonpro_plot.Write("NonPrompt_yield_fit", ROOT.TObject.kOverwrite)
-
-
-                # 将pro_rho和nonpro_rho作为在0和1处的两个点写入文件
-                rho_list = np.array([pro_rho[0],nonpro_rho[0]],dtype=np.float64)
-                rho_error_list = np.array([pro_rho[1],nonpro_rho[1]],dtype=np.float64)
-                simu_rho = ROOT.TGraphErrors(2,np.array([0,1],dtype=np.float64), rho_list, np.array([0,0],dtype=np.float64), rho_error_list)
-                
-                simu_dir.cd()
-                simu_rho.Write("simu_rho", ROOT.TObject.kOverwrite) 
-
         outfile.Close()
 
     def write_simu_rho(self):
@@ -142,28 +102,32 @@ class SpinOps(object):
                     continue
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
 
-                if frame == "Helicity":
-                    frame_axis = 1
-                elif frame == "Production":
-                    frame_axis = 2
-                elif frame == "EP":
-                    frame_axis = 2 #It should be random axis but we don't have the info in the simulation
+                if frame == "EP":
+                    mc_frame = "Random"
                 else:
-                    continue
+                    mc_frame = frame
+               
                 simu_dir = pt_bin_dir.mkdir("Simulation","",ROOT.kTRUE)
 
                 simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Files["simulation"]]
-                TPrompt = self.get_sparse(simu_file_list, "TPrompt")
-                TNonPrompt = self.get_sparse(simu_file_list, "TNonPrompt")
+                TPrompt = self.get_sparse(simu_file_list, f"hf-task-charm-polarisation/hGenPrompt{mc_frame}")
+                TNonPrompt = self.get_sparse(simu_file_list, f"hf-task-charm-polarisation/hGenNonPrompt{mc_frame}")
 
                 pt_min = TPrompt.GetAxis(0).FindBin(pt_min_edge+1e-6)
                 pt_max = TPrompt.GetAxis(0).FindBin(pt_max_edge-1e-6)
                 TPrompt.GetAxis(0).SetRange(pt_min, pt_max)
                 TNonPrompt.GetAxis(0).SetRange(pt_min, pt_max)
 
-                prompt_hist = TPrompt.Projection(frame_axis).Clone("prompt_hist")
+                y_min = TPrompt.GetAxis(2).FindBin(-0.8+1e-6)
+                y_max = TPrompt.GetAxis(2).FindBin(0.8-1e-6)
+                TPrompt.GetAxis(2).SetRange(y_min, y_max)
+                TNonPrompt.GetAxis(2).SetRange(y_min, y_max)
+
+                prompt_hist = TPrompt.Projection(3).Clone("prompt_hist")
+                nonprompt_hist = TNonPrompt.Projection(3).Clone("nonprompt_hist")
+
+                simu_dir.cd()
                 prompt_hist.Write("Prompt_yield", ROOT.TObject.kOverwrite)
-                nonprompt_hist = TNonPrompt.Projection(frame_axis).Clone("nonprompt_hist")
                 nonprompt_hist.Write("NonPrompt_yield", ROOT.TObject.kOverwrite)
 
                 pro_plot, pro_rho = self.get_rho_plot(prompt_hist)
@@ -179,7 +143,7 @@ class SpinOps(object):
                 
                 simu_dir.cd()
                 simu_rho.Write("simu_rho", ROOT.TObject.kOverwrite) 
-  
+
         outfile.Close()
 
     def get_rho_plot(self, hraw_yield):
@@ -211,9 +175,9 @@ class SpinOps(object):
         latex = ROOT.TLatex()
         latex.SetTextSize(0.03)
         latex.SetTextAlign(13)
-        latex.DrawLatexNDC(0.6,0.86,f"#chi^{{2}}/ndf = {chi2ndf:.3f}")
-        latex.DrawLatexNDC(0.6,0.8,f"N_{{0}} = {func.GetParameter(0):.3f} #pm {func.GetParError(0):.3f}")
-        latex.DrawLatexNDC(0.6,0.75,f"#rho_{{00}} = {func.GetParameter(1):.3f} #pm {func.GetParError(1):.3f}")
+        latex.DrawLatexNDC(0.2,0.41,f"#chi^{{2}}/ndf = {chi2ndf:.3f}")
+        latex.DrawLatexNDC(0.2,0.33,f"N_{{0}} = {func.GetParameter(0):.3f} #pm {func.GetParError(0):.3f}")
+        latex.DrawLatexNDC(0.2,0.25,f"#rho_{{00}} = {func.GetParameter(1):.3f} #pm {func.GetParError(1):.3f}")
         latex.Draw("same")
 
         rho = [func.GetParameter(1),func.GetParError(1)]
@@ -234,7 +198,7 @@ class SpinOps(object):
             type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
-            for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+            for ipt, (pt_min_edge, pt_max_edge) in enumerate(zip(pt_edges[:-1], pt_edges[1:])):
 
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 
@@ -263,13 +227,15 @@ class SpinOps(object):
                     rho_list.append(hcorr_rho.GetBinContent(ifd+1)) 
                     rho_error.append(hcorr_rho.GetBinError(ifd+1))
                 
-                if len(fd_edges) < 3:
+                if self.config.BinSet["using_np_mc"][ipt]:
                     frc_list.append(1)
                     frc_error.append(0)
                     hHardrho = pt_bin_dir.Get("Simulation/simu_rho")
-                    rho_list.append(hHardrho.GetY()[1])
-                    rho_error.append(hHardrho.GetErrorY(1))
-        
+                    # rho_list.append(hHardrho.GetY()[1])
+                    # rho_error.append(hHardrho.GetErrorY(1))
+                    rho_list.append(1.0)
+                    rho_error.append(0.001)
+
                 frc_list = np.array(frc_list,dtype=np.float64)
                 frc_error = np.array(frc_error,dtype=np.float64)
                 rho_list = np.array(rho_list,dtype=np.float64)
@@ -278,7 +244,7 @@ class SpinOps(object):
                 pt_bin_dir.cd()
                 canvas = ROOT.TCanvas(f"prompt_fraction_{pt_min_edge}_{pt_max_edge}",f"prompt_fraction_{pt_min_edge}_{pt_max_edge}",800,600)
                 canvas.cd().DrawFrame(
-                    0., 0.2, 1., 0.6,
+                    0., 0.2, 1.02, 0.6,
                     ';#it{f}_{non-prompt};#it{#rho}_{00}'
                 )
 
@@ -359,8 +325,8 @@ class SpinOps(object):
             type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
-            hprompt_rho = ROOT.TH1F("hprompt_rho","hprompt_rho;fd_score;#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
-            hnonprompt_rho = ROOT.TH1F("hnonprompt_rho","hnonprompt_rho;fd_score;#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
+            hprompt_rho = ROOT.TH1F("hprompt_rho","hprompt_rho;p_{T};#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
+            hnonprompt_rho = ROOT.TH1F("hnonprompt_rho","hnonprompt_rho;p_{T};#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
 
@@ -485,8 +451,10 @@ class SpinOps(object):
                 corr_yield_nonprompt = frac_file.Get("hCorrYieldsNonPrompt")
                 Cov_prompt_nonprompt = frac_file.Get("hCovPromptNonPrompt")
 
-                hEff_total = pt_bin_dir_eff.Get("fd_0.00_1.00/hEff_total_cos")
-                
+                if len(fd_edges) > 2:
+                    hEff_total = pt_bin_dir_eff.Get("fd_0.00_1.00/hEff_total_cos")
+                else:
+                    hEff_total = pt_bin_dir_eff.Get(f"fd_{fd_edges[0]:.2f}_{fd_edges[1]:.2f}/hEff_total_cos")
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
 
                     if len(fd_edges) > 2:
