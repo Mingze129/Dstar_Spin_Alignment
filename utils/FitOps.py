@@ -20,7 +20,7 @@ class FitOps(object):
         self.config = config
         self.out_dir = os.path.join(self.config.Directories["OutputDir"], self.config.Analysis["Task_Name"])
         if config.Cre_fit_root:
-            self.fit_file = os.path.join(os.path.join(self.out_dir, "Mass-Fit"), self.config.Analysis["Ana_name"]+'_Fit.root')
+            self.fit_file = os.path.join(os.path.join(self.out_dir, "Mass-Fit"), self.config.Analysis["Name_massfit"]+'_Fit.root')
             fit_root = ROOT.TFile(self.fit_file, "RECREATE")
             fit_root.Close()
         self.ax_title = r"$M(\mathrm{K\pi\pi}) - M(\mathrm{K\pi})$ GeV$/c^2$"
@@ -44,14 +44,13 @@ class FitOps(object):
         
     def get_raw_yield(self):
 
-        outfile_name = os.path.join(self.out_dir, "Analysis-root", self.config.Analysis["Ana_name"]+".root")
         infile_name = os.path.join(self.out_dir, "Analysis-root", "Data_And_Efficiency.root")
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "RawYield_Extraction.root")
 
         infile = ROOT.TFile(infile_name, "READ")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
-        in_ana_dir = infile.Get(self.config.Analysis["Ana_name"])
-        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        in_ana_dir = infile.Get(self.config.Analysis["Name_writing"])
+        ana_dir = outfile.mkdir(self.config.Analysis["Name_massfit"],"",ROOT.kTRUE)
         ana_dir.cd()
 
         pt_edges = self.config.BinSet["pt_bin_edges"]  
@@ -68,7 +67,7 @@ class FitOps(object):
             type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
-            for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+            for ipt, (pt_min_edge, pt_max_edge) in enumerate(zip(pt_edges[:-1], pt_edges[1:])):
                 gc.collect()
                 pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
                 if not pt_bin_set["doing"]:
@@ -117,30 +116,52 @@ class FitOps(object):
                                     "corr_bkg": [False],
                                     "out_dir": self.out_dir
                                 }
-                        raw_yield, raw_yield, par_dict_bkg = self.fit_inv_mass(outfile_name, bkg_fd_dir, task_name, fit_set)
+                        raw_yield, raw_yield, pars_dict_cost_entire = self.fit_inv_mass(outfile_name, bkg_fd_dir, task_name, fit_set)
                         if pt_bin_set["Bkg_func"] == ["expopowext"]:
                             pars_set = [True,"power", "c1", "c2", "c3"]
                         elif pt_bin_set["Bkg_func"] == ["expopow"]:
                             pars_set = [True,"lam"]
-                        init_set = [False,par_dict_bkg]
+                        init_set = [False,pars_dict_cost_entire]
                     elif ifd == 0:
-                        par_dict_bkg = {}
-                        init_set = [False,par_dict_bkg]
+                        pars_dict_cost_entire = {}
+                        init_set = [False,pars_dict_cost_entire]
                         pars_set = [False]
 
                     else:
-                        par_dict_bkg = fd_bin_pars
-                        init_set = [False,par_dict_bkg]
+                        pars_dict_cost_entire = fd_bin_pars
+                        init_set = [False,pars_dict_cost_entire]
                         pars_set = pt_bin_set["fix_pars"]
 
-                    data_fd_dir = os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
-                    task_name = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}"
                     if pt_bin_set["corr_bkg"][0]:
                         factor_hist = in_pt_dir.Get("hist_Norm_cost")
                         fd_factor = factor_hist.GetBinContent(1)
-                        corr_set = pt_bin_set["corr_bkg"] + [infile_name] + [os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hist_corrbkg_integral_cos")] + [fd_factor]
+                        corr_set = pt_bin_set["corr_bkg"] + [infile_name] + [os.path.join(self.config.Analysis["Name_writing"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hist_corrbkg_integral_cos")] + [fd_factor]
                     else:
                         corr_set = [False]
+
+                    if self.config.BinSet["pars_fix_from_mc"][ipt]:
+                        data_fd_dir = os.path.join(self.config.Analysis["Name_writing"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hsignal_total_mc_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}")            
+                        task_name = f"hsignal_mc_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}"
+
+                        fit_set = {"signal_func": pt_bin_set["Signal_func"],
+                                    "bkg_func": ["nobkg"],
+                                    "chi2_loss": pt_bin_set["chi2_loss"],
+                                    "mass_range": pt_bin_set["Mass_range"],
+                                    "rebin": pt_bin_set["Rebin"],
+                                    "bin_counting": pt_bin_set["bin_counting"],
+                                    "init_pars": init_set,
+                                    "fix_pars":pars_set,
+                                    "Custom_pars":[False],
+                                    "threshold": pt_bin_set["threshold"],
+                                    "corr_bkg": corr_set,
+                                    "out_dir": self.out_dir
+                                }
+                        raw_yield, raw_yield_error, par_dict_data = self.fit_inv_mass(infile_name, data_fd_dir, task_name, fit_set)
+                        init_set[1].update(par_dict_data)
+                        pars_set = pt_bin_set["fix_pars"]
+
+                    data_fd_dir = os.path.join(self.config.Analysis["Name_writing"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
+                    task_name = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}"
 
                     fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                 "bkg_func": pt_bin_set["Bkg_func"],
@@ -163,41 +184,26 @@ class FitOps(object):
 
                     cos_bin = np.array(cos_edges)
                     hraw_yield = ROOT.TH1F(f"hraw_yield", f"hraw_yield_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge};Cos#vartheta*;raw_yield", len(cos_bin)-1, cos_bin)
-                    
-                    # cos_sigma_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/sigma_total_cos")
-                    # cos_alphal_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/alphal_total_cos")
-                    # cos_alphar_pars = mc_pars_file.Get(f"{frame}/pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}/fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}/alphar_total_cos")
-
-                    # cos_sigma_pars.Scale(1/fd_simga_pars.GetBinContent(ifd+1))
-                    # cos_alphal_pars.Scale(1/fd_alphal_pars.GetBinContent(ifd+1))
-                    # cos_alphar_pars.Scale(1/fd_alphar_pars.GetBinContent(ifd+1))
 
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
                         fit_task = f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_fd_{fd_min_edge}_{fd_max_edge}_cos_{cos_min_edge}_{cos_max_edge}"
-                        data_dir = os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}" , f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_cos_{cos_min_edge}_{cos_max_edge}")
+                        data_dir = os.path.join(self.config.Analysis["Name_writing"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}" , f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_cos_{cos_min_edge}_{cos_max_edge}")
 
                         if ifd == 0:
-                            init_pars_set = [False, par_dict_data]
+                            init_pars_set = [False, fd_bin_pars]
                             fix_pars_set = pt_bin_set["fix_pars"]
                         else:
                             init_pars_set = [False, cos_dict_list[icos]]
                             fix_pars_set = [True,"nl","nr","alphal","alphar","sigma"]
 
-                        # for par in par_dict_data:
-                        #     cos_dict_pars[par] = par_dict_data[par]
-                        
-                        # cos_dict_pars["sigma"] = cos_sigma_pars.GetBinContent(icos+1)*par_dict_data["sigma"]
-                        # cos_dict_pars["alphal"] = cos_alphal_pars.GetBinContent(icos+1)*par_dict_data["alphal"]
-                        # cos_dict_pars["alphar"] = cos_alphar_pars.GetBinContent(icos+1)*par_dict_data["alphar"]
                         if pt_bin_set["corr_bkg"][0]:
                             factor_func = in_pt_dir.Get("decay_plateau_func")
                             cos_bin_center = (cos_min_edge+cos_max_edge)/2
                             fd_factor = factor_func.Eval(cos_bin_center)
-                            corr_set = pt_bin_set["corr_bkg"] + [infile_name] + [os.path.join(self.config.Analysis["Ana_name"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", f"hist_corrbkg_template")] + [fd_factor]
+                            corr_set = pt_bin_set["corr_bkg"] + [infile_name] + [os.path.join(self.config.Analysis["Name_writing"], frame, f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}", f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}", f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", f"hist_corrbkg_template")] + [fd_factor]
                         else:
                             corr_set = [False]
-
 
                         fit_set = {"signal_func": pt_bin_set["Signal_func"],
                                     "bkg_func": pt_bin_set["Bkg_func"],
@@ -225,7 +231,7 @@ class FitOps(object):
                  
     def fit_inv_mass(self, infile_name, data_dir,  task_name , fit_set):
 
-        figure_dir = os.path.join(fit_set["out_dir"], "Mass-Fit", self.config.Analysis["Ana_name"]+"-Figure")
+        figure_dir = os.path.join(fit_set["out_dir"], "Mass-Fit", self.config.Analysis["Name_massfit"]+"-Figure")
         fit_dir = os.path.join(fit_set["out_dir"], "Mass-Fit")
         os.makedirs(figure_dir, exist_ok=True)
         os.makedirs(fit_dir, exist_ok=True)
@@ -321,8 +327,8 @@ class FitOps(object):
                                             figsize=(8, 8), extra_info_loc=["upper left", "right"],
                                             axis_title=self.ax_title)
                 fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
-                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root')):
-                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root'), "RECREATE")
+                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root'), "RECREATE")
                     fit_root.Close()
                 fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.fit_file)}", option="update",
                                         suffix=f"_{task_name}")
@@ -331,8 +337,8 @@ class FitOps(object):
                                             figsize=(8, 8), extra_info_loc=["upper left", "right"],
                                             axis_title=self.ax_title)
                 fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
-                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root')):
-                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root'), "RECREATE")
+                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root'), "RECREATE")
                     fit_root.Close()
                 try:
                     fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.fit_file)}", option="update",
@@ -345,8 +351,8 @@ class FitOps(object):
                                                 figsize=(8, 8), extra_info_loc=["upper left", "right"],
                                                 axis_title=self.ax_title)
                 fig.savefig(os.path.join(figure_dir, f"{task_name}.pdf"))
-                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root')):
-                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Ana_name"]+'_Fit.root'), "RECREATE")
+                if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root')):
+                    fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root'), "RECREATE")
                     fit_root.Close()
                 self.logger.error(f"Fit for {task_name} is not converged!")
             except:

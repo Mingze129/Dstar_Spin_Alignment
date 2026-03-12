@@ -8,6 +8,7 @@ __author__ = "Mingze Li"
 __email__ = "mingze.li@cern.ch"
 
 from .Formula import *
+from .Tool import *
 from .DataOps import DataOps
 from .FitOps import FitOps
 from .SpinOps import SpinOps
@@ -26,5 +27,6 @@ __all__ = [
     "FitOps",
     "SpinOps",
     "FracOps",
-    "logger_config"
+    "logger_config",
+    "get_sparse"
 ]

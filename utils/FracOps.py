@@ -29,15 +29,15 @@ class FracOps(object):
         
         pt_edges = self.config.BinSet["pt_bin_edges"]
 
-        for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+        for ipt, (pt_min_edge, pt_max_edge) in enumerate(zip(pt_edges[:-1], pt_edges[1:])):
             gc.collect()
             pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
             if not pt_bin_set["doing"]:
                 continue
             self.logger.info(f"Get raw yield for cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
-            raw_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield")
-            frac_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction")
+            raw_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Name_fraction']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/raw_yield")
+            frac_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Name_fraction']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction")
             os.makedirs(raw_dir, exist_ok=True)
             # del all file in raw_dir
             for file in os.listdir(raw_dir):
@@ -49,7 +49,7 @@ class FracOps(object):
                     self.logger.error(f"Error deleting file {file_path}: {e}")
             os.makedirs(frac_dir, exist_ok=True)
 
-            fit_plot_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/Mass-Fit/Figure")
+            fit_plot_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Name_fraction']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/Mass-Fit/Figure")
             if os.path.exists(fit_plot_dir):
                 for file in os.listdir(fit_plot_dir):
                     file_path = os.path.join(fit_plot_dir, file)
@@ -59,8 +59,12 @@ class FracOps(object):
                     except Exception as e:
                         self.logger.error(f"Error deleting file {file_path}: {e}")
 
-            Tdata = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
-            # Tbkg = self.data_ops.get_sparse(self.data, f"hHelicity_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
+            Tdata = self.data_ops.get_sparse(self.data, f"h{self.config.Data_keep_frame[0]}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
+            # Tbkg = self.data_ops.get_sparse(self.data, f"h{self.config.Data_keep_frame[0]}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
+
+            rapidity_min = Tdata.GetAxis(8).FindBin(self.config.BinSet["rapidity_cut"][0]+1e-6)
+            rapidity_max = Tdata.GetAxis(8).FindBin(self.config.BinSet["rapidity_cut"][1]-1e-6)
+            Tdata.GetAxis(8).SetRange(rapidity_min, rapidity_max)
 
             D0_min = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
             D0_max = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
@@ -82,6 +86,54 @@ class FracOps(object):
             fd_edges = pt_bin_set["var_fd_range"]
 
             pars_dict = {}
+    
+            if self.config.BinSet["pars_fix_from_mc"][ipt]:
+                self.logger.info(f"Fixing parameters from MC for pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}")
+                if self.config.Data_keep_frame[0] == "EP":
+                    TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, "EP")
+                else:
+                    TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, f"self.config.Data_keep_frame[0]")
+
+                for Th_mc in [TReco_prompt, TReco_nonprompt]:
+                    Th_mc.GetAxis(3).SetRange(rapidity_min, rapidity_max)
+                    Th_mc.GetAxis(4).SetRange(D0_min,D0_max)
+                    Th_mc.GetAxis(8).SetRange(self.config.BinSet["Min_eta_track"],100)
+                    Th_mc.GetAxis(9).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+                    Th_mc.GetAxis(10).SetRange(self.config.BinSet["Min_cls_TPC"],100)
+                    Th_mc.GetAxis(5).SetRange(6, bkg_max)
+
+                Prompt_Signal = TReco_prompt.Projection(0)
+                Nonprompt_Signal = TReco_nonprompt.Projection(0)
+                MC_Signal = Prompt_Signal.Clone("MC_Signal")
+                MC_Signal.Add(Nonprompt_Signal)
+
+                MC_Signal_file = ROOT.TFile(os.path.join(raw_dir, f"MC_Signal_yield.root"),"RECREATE")
+                MC_Signal_file.cd()
+                MC_Signal.Write("",ROOT.TObject.kOverwrite)
+                MC_Signal_file.Close()
+
+                file = os.path.join(raw_dir, f"MC_Signal_yield.root")
+                fix_pars_set = [False]
+                data_dir = "MC_Signal"
+                task_name = f"MC_Signal_pt_{pt_min_edge}_{pt_max_edge}"
+
+                fit_set = {"signal_func": pt_bin_set["Signal_func"],
+                            "bkg_func": ["nobkg"],
+                            "chi2_loss": pt_bin_set["chi2_loss"],
+                            "mass_range": pt_bin_set["Mass_range"],
+                            "rebin": pt_bin_set["Rebin"],
+                            "bin_counting": pt_bin_set["bin_counting"],
+                            "init_pars":[False, pars_dict],
+                            "fix_pars":fix_pars_set,
+                            "Custom_pars":[False],
+                            "threshold": pt_bin_set["threshold"],
+                            "corr_bkg": [False],
+                            "out_dir": os.path.join(self.out_dir,self.config.Analysis["Name_fraction"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
+                        }
+                
+                raw_yield, raw_yield_error, pars_dict_mc = self.fit_ops.fit_inv_mass(file, data_dir, task_name, fit_set)
+                pars_dict.update(pars_dict_mc)
+
 
             if pt_bin_set["corr_bkg"][0]:
                 factor_dir = os.path.join("/home/mingze/work/dstar/Dstar_Spin_Alignment", "Input/Part_study/templates_corrbkg_pt30_50.root")
@@ -106,19 +158,22 @@ class FracOps(object):
                 # Tbkg.GetAxis(4).SetRange(fd_min, fd_max)
 
                 self.logger.info(f"Cut-variation, icut = {icut}, fd_min_edge = {fd_min_edge:.3f}")
+
+                raw_yield_file = ROOT.TFile(os.path.join(raw_dir, f"{icut}_raw_yield_fd-cut_{fd_min_edge:.3f}.root"),"RECREATE")
+                hmass = Tdata.Projection(0).Clone("hmass")
+                raw_yield_file.cd()
+                hmass.Write("",ROOT.TObject.kOverwrite)
+                if icut == 0:
+                    for qc_axis in self.config.Qc_check_axes["Reduced"]:
+                        hist = Tdata.Projection(qc_axis).Clone()
+                        hist.Write("",ROOT.TObject.kOverwrite)
+                if pt_bin_set["corr_bkg"][0]:
+                    template.Write("template",ROOT.TObject.kOverwrite)
+
                 try:
-                    
-                    raw_yield_file = ROOT.TFile(os.path.join(raw_dir, f"{icut}_raw_yield_fd-cut_{fd_min_edge:.3f}.root"),"RECREATE")
-                    hmass = Tdata.Projection(0).Clone("hmass")
-                    raw_yield_file.cd()
-                    hmass.Write("",ROOT.TObject.kOverwrite)
-                    if pt_bin_set["corr_bkg"][0]:
-                        template.Write("template",ROOT.TObject.kOverwrite)
-                    
                     file = os.path.join(raw_dir, f"{icut}_raw_yield_fd-cut_{fd_min_edge:.3f}.root")
 
                     if icut == 0 :
-                        
                         # hbkg = Tbkg.Projection(0).Clone("hbkg")
                         raw_yield_file.cd()
                         # hbkg.Write("",ROOT.TObject.kOverwrite)
@@ -142,14 +197,16 @@ class FracOps(object):
                                         "Custom_pars":[False],
                                         "threshold": pt_bin_set["threshold"],
                                         "corr_bkg": [False],
-                                        "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}") 
+                                        "out_dir": os.path.join(self.out_dir,self.config.Analysis["Name_fraction"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}") 
                                     }
                             
                             raw_yield, raw_yield_error, par_dict_bkg = self.fit_ops.fit_inv_mass(file, bkg_dir, task_name, fit_set)
                             fix_pars_set = [True, "power", "c1", "c2", "c3"],
                         else:
-                            par_dict_bkg = {}
-                            fix_pars_set = [False]
+                            if self.config.BinSet["pars_fix_from_mc"][ipt]:
+                                fix_pars_set = [True, "nl","nr","alphal","alphar"]
+                            else:
+                                fix_pars_set = [False]
                         data_dir = "hmass"
                         task_name = f"{icut}_hmass_pt_{pt_min_edge}_{pt_max_edge}_fd-cut_{fd_min_edge:.3f}"
 
@@ -159,12 +216,12 @@ class FracOps(object):
                                     "mass_range": pt_bin_set["Mass_range"],
                                     "rebin": pt_bin_set["Rebin"],
                                     "bin_counting": pt_bin_set["bin_counting"],
-                                    "init_pars":[False,par_dict_bkg],
+                                    "init_pars":[False,pars_dict],
                                     "fix_pars":fix_pars_set,
                                     "Custom_pars":[False],
                                     "threshold": pt_bin_set["threshold"],
                                     "corr_bkg": corr_set,
-                                    "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
+                                    "out_dir": os.path.join(self.out_dir,self.config.Analysis["Name_fraction"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
                         
                         raw_yield, raw_yield_error, pars_dict_data = self.fit_ops.fit_inv_mass(file, data_dir, task_name, fit_set)
@@ -198,7 +255,7 @@ class FracOps(object):
                                     "Custom_pars":[False],
                                     "threshold": pt_bin_set["threshold"],
                                     "corr_bkg": corr_set,
-                                    "out_dir": os.path.join(self.out_dir,self.config.Analysis["Ana_name"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
+                                    "out_dir": os.path.join(self.out_dir,self.config.Analysis["Name_fraction"],f"pt_{pt_min_edge:0d}_{pt_max_edge:0d}")
                                 }
                         
                         raw_yield, raw_yield_error, pars_dict_no = self.fit_ops.fit_inv_mass(file, data_dir, task_name, fit_set)
@@ -221,8 +278,10 @@ class FracOps(object):
         
         pt_edges = self.config.BinSet["pt_bin_edges"]
 
-        TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, "Helicity")
- 
+        if self.config.Data_keep_frame[0] == "EP":
+            TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, "EP")
+        else:
+            TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, f"self.config.Data_keep_frame[0]") 
         for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
             gc.collect()
             pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
@@ -230,8 +289,8 @@ class FracOps(object):
                 continue
             self.logger.info(f"Get efficiency for cut-variation in pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}...")
 
-            eff_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency")
-            frac_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction")
+            eff_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Name_fraction']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/efficiency")
+            frac_dir = os.path.join(self.out_dir,f"{self.config.Analysis['Name_fraction']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction")
             os.makedirs(eff_dir, exist_ok=True)
             # del all file in eff_dir
             for file in os.listdir(eff_dir):
@@ -255,10 +314,12 @@ class FracOps(object):
             TGen_prompt.GetAxis(0).SetRange(pt_min, pt_max)
             TGen_nonprompt.GetAxis(0).SetRange(pt_min, pt_max)
 
-            y_min = TGen_prompt.GetAxis(2).FindBin(-0.8+1e-6)
-            y_max = TGen_prompt.GetAxis(2).FindBin(0.8-1e-6)
-            TGen_prompt.GetAxis(2).SetRange(y_min,y_max)
-            TGen_nonprompt.GetAxis(2).SetRange(y_min,y_max)
+            rapidity_min = TGen_prompt.GetAxis(2).FindBin(self.config.BinSet["rapidity_cut"][0]+1e-6)
+            rapidity_max = TGen_prompt.GetAxis(2).FindBin(self.config.BinSet["rapidity_cut"][1]+1e-6)
+            TGen_prompt.GetAxis(2).SetRange(rapidity_min, rapidity_max)
+            TGen_nonprompt.GetAxis(2).SetRange(rapidity_min, rapidity_max)
+            TReco_prompt.GetAxis(3).SetRange(rapidity_min, rapidity_max)
+            TReco_nonprompt.GetAxis(3).SetRange(rapidity_min, rapidity_max)
 
             bkg_max = TReco_prompt.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
             TReco_prompt.GetAxis(6).SetRange(0, bkg_max)
@@ -277,7 +338,16 @@ class FracOps(object):
                     TReco_nonprompt.GetAxis(7).SetRange(fd_Score_min, fd_Score_max)
 
                     eff_file = ROOT.TFile(os.path.join(eff_dir, f"{icut}_efficiency_fd-cut_{fd_min_edge:.3f}.root"),"RECREATE")
-                    
+                    eff_file.cd()
+                    if icut == 0:
+                        for qc_axis in self.config.Qc_check_axes["Reco"]:
+                            hist = TReco_prompt.Projection(qc_axis).Clone()
+                            hist.Write("",ROOT.TObject.kOverwrite)
+                        for qc_axis in self.config.Qc_check_axes["Gen"]:
+                            hist = TGen_prompt.Projection(qc_axis).Clone()
+                            hist.Write("",ROOT.TObject.kOverwrite)
+
+
                     heff_prompt = ROOT.TH1F("heff_prompt","",1,pt_min_edge,pt_max_edge)
                     heff_nonprompt = ROOT.TH1F("heff_nonprompt","",1,pt_min_edge,pt_max_edge)
                     heff_prompt_gen = ROOT.TH1F("heff_prompt_gen","",1,pt_min_edge,pt_max_edge)

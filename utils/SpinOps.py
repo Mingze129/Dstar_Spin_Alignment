@@ -12,11 +12,21 @@ class SpinOps(object):
         self.out_dir = os.path.join(self.config.Directories["OutputDir"], self.config.Analysis["Task_Name"])
         self.logger = logger
 
+    def get_resolution(self, hist, min, max):
+
+        bin_min = hist.GetXaxis().FindBin(min+1e-6)
+        bin_max = hist.GetXaxis().FindBin(max-1e-6)
+
+        sum_resolution = hist.Integral(bin_min, bin_max)
+        Sum_bins = bin_max - bin_min + 1
+
+        return sum_resolution / Sum_bins        
+
     def get_rho(self):
 
         file_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
         outfile = ROOT.TFile(file_name, "UPDATE")
-        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir = outfile.mkdir(self.config.Analysis["Name_rhoextract"],"",ROOT.kTRUE)
         ana_dir.cd()
 
         pt_edges = self.config.BinSet["pt_bin_edges"]  
@@ -70,6 +80,12 @@ class SpinOps(object):
 
                     corr_fit_plot, corr_fit_pars = self.get_rho_plot(corr_yield_hist)
                     corr_fit_plot.Write("corr_yield_fit", ROOT.TObject.kOverwrite)
+                    if self.config.EP_Resolution["doing"] and frame == "EP":
+                        Resolution_file = ROOT.TFile(os.path.join(self.out_dir, "Analysis-root", "EP_Resolution.root"), "READ")
+                        Resolution_hist = Resolution_file.Get("hEP_resolution")
+                        EP_Resolution = self.get_resolution(Resolution_hist, 30, 50)
+                        corr_fit_pars[0] = 1/3 + (corr_fit_pars[0] - 1/3) * (4/(1 + 3*EP_Resolution))
+                        corr_fit_pars[1] = corr_fit_pars[1] * (4/(1 + 3*EP_Resolution))
                     hcorr_rho.SetBinContent(bin_num, corr_fit_pars[0])
                     hcorr_rho.SetBinError(bin_num, corr_fit_pars[1])
 
@@ -83,7 +99,7 @@ class SpinOps(object):
 
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
-        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir = outfile.mkdir(self.config.Analysis["Name_rhoextract"],"",ROOT.kTRUE)
         ana_dir.cd()
 
         pt_edges = self.config.BinSet["pt_bin_edges"]  
@@ -137,9 +153,9 @@ class SpinOps(object):
                 simu_dir.cd()
                 nonpro_plot.Write("NonPrompt_yield_fit", ROOT.TObject.kOverwrite)
 
-                rho_list = np.array([pro_rho[0],nonpro_rho[0]],dtype=np.float64)
-                rho_error_list = np.array([pro_rho[1],nonpro_rho[1]],dtype=np.float64)
-                simu_rho = ROOT.TGraphErrors(2,np.array([0,1],dtype=np.float64), rho_list, np.array([0,0],dtype=np.float64), rho_error_list)
+                corr_rho_list = np.array([pro_rho[0],nonpro_rho[0]],dtype=np.float64)
+                corr_rho_error_list = np.array([pro_rho[1],nonpro_rho[1]],dtype=np.float64)
+                simu_rho = ROOT.TGraphErrors(2,np.array([0,1],dtype=np.float64), corr_rho_list, np.array([0,0],dtype=np.float64), corr_rho_error_list)
                 
                 simu_dir.cd()
                 simu_rho.Write("simu_rho", ROOT.TObject.kOverwrite) 
@@ -187,7 +203,7 @@ class SpinOps(object):
 
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
-        ana_dir = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir = outfile.mkdir(self.config.Analysis["Name_rhoextract"],"",ROOT.kTRUE)
         ana_dir.cd()
 
         pt_edges = self.config.BinSet["pt_bin_edges"]  
@@ -204,116 +220,158 @@ class SpinOps(object):
                 
                 if not pt_bin_set["doing"]:
                     continue
+
                 pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
                 pt_bin_dir.cd()
 
                 fd_edges = pt_bin_set["fd_edges"]
 
-                hraw_frc = pt_bin_dir.Get("hfrac")
+                hnp_fraction = pt_bin_dir.Get("hfrac")
                 hcorr_rho = pt_bin_dir.Get("hcorr_rho")
                 
-                frc_list = []
-                frc_error = []
-                rho_list = []
-                rho_error = []
+                frac_list = []
+                frac_error = []
+                corr_rho_list = []
+                corr_rho_error = []
 
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_edges[:-1], fd_edges[1:])):
 
                     fd_dir = pt_bin_dir.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
                     fd_dir.cd()
 
-                    frc_list.append(hraw_frc.GetBinContent(ifd+1))
-                    frc_error.append(hraw_frc.GetBinError(ifd+1))
-                    rho_list.append(hcorr_rho.GetBinContent(ifd+1)) 
-                    rho_error.append(hcorr_rho.GetBinError(ifd+1))
-                
+                    frac_list.append(hnp_fraction.GetBinContent(ifd+1))
+                    frac_error.append(hnp_fraction.GetBinError(ifd+1))
+                    corr_rho_list.append(hcorr_rho.GetBinContent(ifd+1)) 
+                    corr_rho_error.append(hcorr_rho.GetBinError(ifd+1))
+
                 if self.config.BinSet["using_np_mc"][ipt]:
-                    frc_list.append(1)
-                    frc_error.append(0)
-                    hHardrho = pt_bin_dir.Get("Simulation/simu_rho")
-                    # rho_list.append(hHardrho.GetY()[1])
-                    # rho_error.append(hHardrho.GetErrorY(1))
-                    rho_list.append(1.0)
-                    rho_error.append(0.001)
-
-                frc_list = np.array(frc_list,dtype=np.float64)
-                frc_error = np.array(frc_error,dtype=np.float64)
-                rho_list = np.array(rho_list,dtype=np.float64)
-                rho_error = np.array(rho_error,dtype=np.float64)
-                
-                pt_bin_dir.cd()
-                canvas = ROOT.TCanvas(f"prompt_fraction_{pt_min_edge}_{pt_max_edge}",f"prompt_fraction_{pt_min_edge}_{pt_max_edge}",800,600)
-                canvas.cd().DrawFrame(
-                    0., 0.2, 1.02, 0.6,
-                    ';#it{f}_{non-prompt};#it{#rho}_{00}'
-                )
-
-                TGraph = ROOT.TGraphErrors(len(frc_list),frc_list,rho_list,frc_error,rho_error)
-                TGraph.SetName(f"rho_prompt_{pt_min_edge}_{pt_max_edge}")
-                TGraph.SetTitle(f"Non-prompt fraction vs rho_{pt_min_edge}_{pt_max_edge}")
-                TGraph.GetXaxis().SetTitle("f_{non-prompt}")
-                TGraph.GetYaxis().SetTitle("#rho_{00}")
-                TGraph.SetMarkerStyle(20)
-                TGraph.SetMarkerSize(0.5)
-                TGraph.Write(f"rhovsfrc_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
-
-                linearFit = ROOT.TF1("linearFit", "[0] + [1]*x", -0.1, 1)
-                TGraph.Fit(linearFit)
-
-                ConInt3 = ROOT.TH1D("ConInt3","ConInt3",1000,-0.1,1)
-                ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt3, 0.99)
-
-                ConInt3.SetLineColor(ROOT.kAzure)
-                ConInt3.SetFillColorAlpha(ROOT.kAzure,0.3)
-                ConInt3.SetFillStyle(1001)
-                ConInt3.SetMarkerStyle(0)
-                ConInt3.DrawCopy("SAME")
-                ConInt3.Write(f"ConInt3_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
-
-                ConInt2 = ROOT.TH1D("ConInt2","ConInt2",1000,-0.1,1)
-                ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt2, 0.95)
-
-                ConInt2.SetLineColor(ROOT.kAzure+4)
-                ConInt2.SetFillColorAlpha(ROOT.kAzure+4,0.3)
-                ConInt2.SetFillStyle(1001)
-                ConInt2.SetMarkerStyle(0)
-                ConInt2.DrawCopy("SAME")
-                ConInt2.Write(f"ConInt2_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
-
-                ConInt = ROOT.TH1D("ConInt","ConInt",1000,-0.1,1)
-                ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt, 0.68)
+                    hrho = ROOT.TH1F("hrho","#rho_{00};f_nonprompt;#rho_{00}",2,-0.5,1.5)
+                    hSimurho = pt_bin_dir.Get("Simulation/simu_rho")
+                    frac_list.append(1.0)
+                    frac_error.append(0.0)
+                    corr_rho_list.append(hSimurho.GetY()[1])
+                    corr_rho_error.append(hSimurho.GetErrorY(1))
+                    #non-prompt rho00 correction
+                    if self.config.BinSet["corr_with_v2"][ipt]:       
+                        non_prompt_rho = (0.26-1/3) * frac_list[0] + 1/3
+                        non_prompt_rho_error = abs(0.26-1/3) * frac_error[0]
+                        hrho.SetBinContent(2,non_prompt_rho)
+                        hrho.SetBinError(2,non_prompt_rho_error)
+                        prompt_rho = (corr_rho_list[0] - frac_list[0] * non_prompt_rho) / (1-frac_list[0])
+                        prompt_rho_error = np.sqrt( (corr_rho_error[0]/(1-frac_list[0]))**2 + (frac_error[0]*(non_prompt_rho - prompt_rho)/(1-frac_list[0]))**2 + (non_prompt_rho_error*frac_list[0]/(1-frac_list[0]))**2 )
+                    else:
+                        prompt_rho = (corr_rho_list[0] - frac_list[0] * corr_rho_list[1]) / (1-frac_list[0])
+                        prompt_rho_error = np.sqrt( (corr_rho_error[0]/(1-frac_list[0]))**2 + (frac_error[0]*(corr_rho_list[1] - prompt_rho)/(1-frac_list[0]))**2 + (corr_rho_error[1]*frac_list[0]/(1-frac_list[0]))**2 )
             
-                TGraph.GetXaxis().SetRangeUser(0,1)
-                ConInt.SetLineColor(ROOT.kAzure+8)
-                ConInt.SetFillColorAlpha(ROOT.kAzure+8,0.3)
-                ConInt.SetFillStyle(1001)
-                ConInt.SetMarkerStyle(0)
-                ConInt.DrawCopy("SAME")
-                ConInt.Write(f"ConInt_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
+                    hrho.SetBinContent(1,prompt_rho)
+                    hrho.SetBinError(1,prompt_rho_error)
 
-                TGraph.Draw("EPSAME")
-                TGraph.Write(f"fit_rhovsfrac",ROOT.TObject.kOverwrite)
-            
-                linearFit.Draw("LSAME")
-                linearFit.Write(f"linearFit_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
+                    pt_bin_dir.cd()
+                    canvas = ROOT.TCanvas(f"prompt_fraction_{pt_min_edge}_{pt_max_edge}",f"prompt_fraction_{pt_min_edge}_{pt_max_edge}",800,600)
+                    canvas.cd().DrawFrame(
+                            0., 0.2, 1.02, 0.6,
+                            ';#it{f}_{non-prompt};#it{#rho}_{00}'
+                        )
+                    frac_list = np.array(frac_list,dtype=np.float64)
+                    frac_error = np.array(frac_error,dtype=np.float64)
+                    corr_rho_list = np.array(corr_rho_list,dtype=np.float64)
+                    corr_rho_error = np.array(corr_rho_error,dtype=np.float64)
+                    TGraph = ROOT.TGraphErrors(len(frac_list),frac_list,corr_rho_list,frac_error,corr_rho_error)
+                    TGraph.SetName(f"rhovsfrc_{pt_min_edge}_{pt_max_edge}")
+                    TGraph.SetTitle(f"Non-prompt fraction vs rho_{pt_min_edge}_{pt_max_edge}")
+                    TGraph.GetXaxis().SetTitle("f_{non-prompt}")
+                    TGraph.GetYaxis().SetTitle("#rho_{00}")
+                    TGraph.SetMarkerStyle(20)
+                    TGraph.SetMarkerSize(0.5)
+                    TGraph.Draw("EP")
+
+                    hrho.SetLineColor(ROOT.kRed)
+                    hrho.Draw("P SAME")
+                    
+                    canvas.Write("",ROOT.TObject.kOverwrite)
+
+                else:
+                                    
+                    frac_list = np.array(frac_list,dtype=np.float64)
+                    frac_error = np.array(frac_error,dtype=np.float64)
+                    corr_rho_list = np.array(corr_rho_list,dtype=np.float64)
+                    corr_rho_error = np.array(corr_rho_error,dtype=np.float64)
+                    
+                    pt_bin_dir.cd()
+                    canvas = ROOT.TCanvas(f"prompt_fraction_{pt_min_edge}_{pt_max_edge}",f"prompt_fraction_{pt_min_edge}_{pt_max_edge}",800,600)
+                    canvas.cd().DrawFrame(
+                        0., 0.2, 1.02, 0.6,
+                        ';#it{f}_{non-prompt};#it{#rho}_{00}'
+                    )
+
+                    TGraph = ROOT.TGraphErrors(len(frac_list),frac_list,corr_rho_list,frac_error,corr_rho_error)
+                    TGraph.SetName(f"rhovsfrc_{pt_min_edge}_{pt_max_edge}")
+                    TGraph.SetTitle(f"Non-prompt fraction vs rho_{pt_min_edge}_{pt_max_edge}")
+                    TGraph.GetXaxis().SetTitle("f_{non-prompt}")
+                    TGraph.GetYaxis().SetTitle("#rho_{00}")
+                    TGraph.SetMarkerStyle(20)
+                    TGraph.SetMarkerSize(0.5)
+                    TGraph.Write("",ROOT.TObject.kOverwrite)
+
+                    linearFit = ROOT.TF1("linearFit", "[0] + [1]*x", -0.1, 1)
+                    TGraph.Fit(linearFit)
+
+                    ConInt3 = ROOT.TH1D("ConInt3","ConInt3",1000,-0.1,1)
+                    ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt3, 0.99)
+
+                    ConInt3.SetLineColor(ROOT.kAzure)
+                    ConInt3.SetFillColorAlpha(ROOT.kAzure,0.3)
+                    ConInt3.SetFillStyle(1001)
+                    ConInt3.SetMarkerStyle(0)
+                    ConInt3.DrawCopy("SAME")
+                    ConInt3.Write(f"ConInt3_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
+
+                    ConInt2 = ROOT.TH1D("ConInt2","ConInt2",1000,-0.1,1)
+                    ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt2, 0.95)
+
+                    ConInt2.SetLineColor(ROOT.kAzure+4)
+                    ConInt2.SetFillColorAlpha(ROOT.kAzure+4,0.3)
+                    ConInt2.SetFillStyle(1001)
+                    ConInt2.SetMarkerStyle(0)
+                    ConInt2.DrawCopy("SAME")
+                    ConInt2.Write(f"ConInt2_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
+
+                    ConInt = ROOT.TH1D("ConInt","ConInt",1000,-0.1,1)
+                    ROOT.TVirtualFitter.GetFitter().GetConfidenceIntervals(ConInt, 0.68)
                 
-                pt_bin_dir.cd()
-                canvas.Write("",ROOT.TObject.kOverwrite)
+                    TGraph.GetXaxis().SetRangeUser(0,1)
+                    ConInt.SetLineColor(ROOT.kAzure+8)
+                    ConInt.SetFillColorAlpha(ROOT.kAzure+8,0.3)
+                    ConInt.SetFillStyle(1001)
+                    ConInt.SetMarkerStyle(0)
+                    ConInt.DrawCopy("SAME")
+                    ConInt.Write(f"ConInt_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
 
-                hrho = ROOT.TH1F("hrho","#rho_{00};f_nonprompt;#rho_{00}",2,-0.5,1.5)
-                hrho.SetBinContent(1,linearFit.GetParameter(0))
-                hrho.SetBinError(1,linearFit.GetParError(0))
-                hrho.SetBinContent(2,linearFit.GetParameter(0)+linearFit.GetParameter(1))
-                hrho.SetBinError(2,linearFit.GetParError(0)+linearFit.GetParError(1))
+                    TGraph.Draw("EPSAME")
+                    TGraph.Write(f"fit_rhovsfrac",ROOT.TObject.kOverwrite)
+                
+                    linearFit.Draw("LSAME")
+                    linearFit.Write(f"linearFit_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
+                    
+                    pt_bin_dir.cd()
+                    canvas.Write("",ROOT.TObject.kOverwrite)
+
+                    hrho = ROOT.TH1F("hrho","#rho_{00};f_nonprompt;#rho_{00}",2,-0.5,1.5)
+                    hrho.SetBinContent(1,linearFit.GetParameter(0))
+                    hrho.SetBinError(1,linearFit.GetParError(0))
+                    hrho.SetBinContent(2,linearFit.GetParameter(0)+linearFit.GetParameter(1))
+                    hrho.SetBinError(2,linearFit.GetParError(0)+linearFit.GetParError(1))
+
+                pt_bin_dir.cd()
                 hrho.Write(f"rho_{pt_min_edge}_{pt_max_edge}",ROOT.TObject.kOverwrite)
-
+        outfile.Write("",ROOT.TObject.kOverwrite)
         outfile.Close()
         
     def plot_rho(self):
 
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
-        ana_dir = outfile.Get(self.config.Analysis["Ana_name"])
+        ana_dir = outfile.Get(self.config.Analysis["Name_rhoextract"])
         ana_dir.cd()
 
         pt_edges = self.config.BinSet["pt_bin_edges"]  
@@ -325,8 +383,8 @@ class SpinOps(object):
             type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
             type_dir.cd()
 
-            hprompt_rho = ROOT.TH1F("hprompt_rho","hprompt_rho;p_{T};#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
-            hnonprompt_rho = ROOT.TH1F("hnonprompt_rho","hnonprompt_rho;p_{T};#rho", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
+            hprompt_rho = ROOT.TH1F(f"hprompt_rho_{frame}","hprompt_rho;p_{T};#rho_{00}", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
+            hnonprompt_rho = ROOT.TH1F(f"hnonprompt_rho_{frame}","hnonprompt_rho;p_{T};#rho_{00}", len(pt_edges)-1, np.array(pt_edges,dtype=np.float64))
 
             for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
 
@@ -344,20 +402,21 @@ class SpinOps(object):
 
             canves = ROOT.TCanvas(f"rho_{frame}",f"rho_{frame}",800,600)
 
-            hnonprompt_rho.SetMarkerStyle(20)
-            hnonprompt_rho.SetMarkerSize(0.5)
-            hnonprompt_rho.SetMarkerColor(ROOT.kRed+1)
-            hnonprompt_rho.SetLineWidth(2)
-            hnonprompt_rho.SetLineColor(ROOT.kRed+1)
-            hnonprompt_rho.GetYaxis().SetRangeUser(0.1,0.7)
-            hnonprompt_rho.Draw("P")
-
             hprompt_rho.SetMarkerStyle(20)
             hprompt_rho.SetMarkerSize(0.5)
             hprompt_rho.SetMarkerColor(ROOT.kBlue+1)
             hprompt_rho.SetLineWidth(2)
             hprompt_rho.SetLineColor(ROOT.kBlue+1)
-            hprompt_rho.Draw("PSAME")
+            hprompt_rho.Draw("P")
+
+            if self.config.Plot_np_rho:
+                hnonprompt_rho.SetMarkerStyle(20)
+                hnonprompt_rho.SetMarkerSize(0.5)
+                hnonprompt_rho.SetMarkerColor(ROOT.kRed+1)
+                hnonprompt_rho.SetLineWidth(2)
+                hnonprompt_rho.SetLineColor(ROOT.kRed+1)
+                hnonprompt_rho.GetYaxis().SetRangeUser(0.1,0.7)
+                hnonprompt_rho.Draw("P SAME")
 
             line = ROOT.TLine(hprompt_rho.GetXaxis().GetXmin(),1/3,hprompt_rho.GetXaxis().GetXmax(),1/3)
             line.SetLineColor(ROOT.kBlack)
@@ -367,14 +426,18 @@ class SpinOps(object):
 
             leg = ROOT.TLegend(0.6, 0.2, 0.85, 0.3)
             leg.AddEntry(hprompt_rho, "prompt D*^{+}", "p")
-            leg.AddEntry(hnonprompt_rho, "non-prompt D*^{+}", "p")
+            if self.config.Plot_np_rho:
+                leg.AddEntry(hnonprompt_rho, "non-prompt D*^{+}", "p")
             leg.SetBorderSize(0)
             leg.Draw("same")
 
-            hprompt_rho.Write(f"hprompt_rho_{frame}",ROOT.TObject.kOverwrite)
-            hnonprompt_rho.Write(f"hnonprompt_rho_{frame}",ROOT.TObject.kOverwrite)
-            canves.Write(f"rho{frame}",ROOT.TObject.kOverwrite)
- 
+            type_dir.cd()
+            hprompt_rho.Write("",ROOT.TObject.kOverwrite)
+            hnonprompt_rho.Write("",ROOT.TObject.kOverwrite)
+            canves.Write("", ROOT.TObject.kOverwrite)
+            
+        outfile.Close()
+
     def get_sparse(self, file_list, name):
         
         sparse = []
@@ -400,14 +463,13 @@ class SpinOps(object):
         infile_eff_name = os.path.join(self.out_dir, "Analysis-root", "Data_And_Efficiency.root")
         infile_yield_name = os.path.join(self.out_dir, "Analysis-root", "RawYield_Extraction.root")
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
-        # self.config.Analysis["Ana_name"]+".root")
 
         infile_eff = ROOT.TFile(infile_eff_name, "READ")
-        ana_dir_eff = infile_eff.Get(self.config.Analysis["Ana_name"])
+        ana_dir_eff = infile_eff.Get(self.config.Analysis["Name_writing"])
         infile_yield = ROOT.TFile(infile_yield_name, "READ")
-        ana_dir_yield = infile_yield.Get(self.config.Analysis["Ana_name"])
+        ana_dir_yield = infile_yield.Get(self.config.Analysis["Name_massfit"])
         outfile = ROOT.TFile(outfile_name, "UPDATE")
-        ana_dir_out = outfile.mkdir(self.config.Analysis["Ana_name"],"",ROOT.kTRUE)
+        ana_dir_out = outfile.mkdir(self.config.Analysis["Name_rhoextract"],"",ROOT.kTRUE)
         ana_dir_out.cd()
 
         frame_list = self.config.Analysis["Framework"]
@@ -445,7 +507,7 @@ class SpinOps(object):
 
                 hfrac_np_fd = heff_prompt_fd.Clone("hfrac_np_fd")
 
-                frac_file_dir = os.path.join(self.out_dir,f"Cut-variation/{self.config.Analysis['Ana_name']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction","CutVar_"+self.config.Analysis['Ana_name']+".root")
+                frac_file_dir = os.path.join(self.out_dir,f"Cut-variation/{self.config.Analysis['Name_fraction']}/pt_{pt_min_edge:0d}_{pt_max_edge:0d}/fraction","CutVar_"+self.config.Analysis['Name_fraction']+".root")
                 frac_file = ROOT.TFile(frac_file_dir,"READ")
                 corr_yield_prompt = frac_file.Get("hCorrYieldsPrompt")
                 corr_yield_nonprompt = frac_file.Get("hCorrYieldsNonPrompt")
@@ -467,7 +529,7 @@ class SpinOps(object):
                     fd_dir_out = pt_bin_dir_out.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
                     fd_dir_out.cd()
 
-                    raw_np_frc, raw_np_frc_error = self.get_nonprompt_frac(heff_prompt_fd.GetBinContent(bin_num),
+                    raw_np_frc, raw_np_frac_error = self.get_nonprompt_frac(heff_prompt_fd.GetBinContent(bin_num),
                                                                 heff_nonprompt_fd.GetBinContent(bin_num),
                                                                 corr_yield_prompt.GetBinContent(1),
                                                                 corr_yield_nonprompt.GetBinContent(1),
@@ -476,7 +538,7 @@ class SpinOps(object):
                                                                 Cov_prompt_nonprompt.GetBinContent(1))
  
                     hfrac_np_fd.SetBinContent(bin_num, raw_np_frc)
-                    hfrac_np_fd.SetBinError(bin_num, raw_np_frc_error)
+                    hfrac_np_fd.SetBinError(bin_num, raw_np_frac_error)
 
                     hraw_yield = fd_dir_yield.Get("hraw_yield")
                     hEff_cos = fd_dir_eff.Get("hEff_total_cos")
@@ -487,7 +549,7 @@ class SpinOps(object):
                     for icos,(cos_min_edge,cos_max_edge) in enumerate(zip(cos_edges[:-1], cos_edges[1:])):
 
                         hfrac_cos.SetBinContent(icos+1, raw_np_frc)
-                        hfrac_cos.SetBinError(icos+1,raw_np_frc_error)
+                        hfrac_cos.SetBinError(icos+1,raw_np_frac_error)
   
                     # Corrected yield with efficiency in different fd bin
                     # hcorr_yield_cos = hraw_yield.Clone("hcorr_yield_cos")

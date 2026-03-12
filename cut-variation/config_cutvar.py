@@ -1,18 +1,19 @@
 import numpy as np
 import sys
 sys.path.append("..")
-sys.path.append("../Sys_config")
-import Configurations as config
+sys.path.append("../Sys_config/PbPb")
+sys.path.append("../Sys_config/pp")
+import Configurations_PbPb as config
 
 gen_set = config
 bin_set = config.BinSet["pt_bin_set"]
 task_name = config.Analysis["Task_Name"]
-Ana_name = config.Analysis["Ana_name"]
+Ana_name = config.Analysis["Name_fraction"]
 
-pt_min = 50
-pt_max = 100
-start_bin = 0
-end_bin = 12
+pt_min = 30
+pt_max = 50
+start_bin = 10
+end_bin = 38
 remove_bin = []
 
 fd_edges = bin_set[f"{pt_min}-{pt_max}"]["var_fd_range"]
@@ -22,6 +23,9 @@ raw_yield_list = [f"{i}_raw_yield_fd-cut_{fd_min:.3f}.root" for (i, fd_min,fd_ma
 eff_list = [ f"{i}_efficiency_fd-cut_{fd_min:.3f}.root" for (i, fd_min,fd_max) in zip(icut[start_bin:end_bin],fd_edges[start_bin:end_bin-1],fd_edges[start_bin+1:end_bin])]
 
 for nbin in remove_bin:
+  print(f"Removing bin {nbin} with fd cut at {fd_edges[nbin]:.3f}")
+  print(f"{nbin}_raw_yield_fd-cut_{fd_edges[nbin]:.3f}.root")
+  print(raw_yield_list)
   raw_yield_list.remove(f"{nbin}_raw_yield_fd-cut_{fd_edges[nbin]:.3f}.root"),
   eff_list.remove(f"{nbin}_efficiency_fd-cut_{fd_edges[nbin]:.3f}.root")
 

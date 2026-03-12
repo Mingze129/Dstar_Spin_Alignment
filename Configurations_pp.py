@@ -13,8 +13,8 @@ Analysis = {
 Doing = {
     "Cut_Variations": False,
     "Data_And_Efficiency": False,
-    "Signal_Extraction": False,
-    "Rho_Extraction": True,
+    "Signal_Extraction": True,
+    "Rho_Extraction": False,
     "3-5":     True,
     "5-7":     True,
     "7-10":    True,
@@ -271,3 +271,9 @@ Data_keep_frame = ["Helicity", "Production"]
 Data_keep_axis = np.array([0, 4, 5, 6, 7, 8, 9, 10], dtype=np.int32) # mass, mD0, cosstar, mlbkg, mlfd, mintrack, Nits, Ntpc
 Force_Reducing = False
 Cre_fit_root= True
+
+Qc_check_axes = {
+    "Reduced" : [3, 4],
+    "Reco": [1, 3, 4, 6],
+    "Gen": [0, 2]
+}
