@@ -16,9 +16,6 @@ class McOps(object):
 
     def get_mc_sparse(self, mc_list, frame):
 
-        if frame == "EP":
-            frame = "Random"
-        
         Reco_prompt_mc = list()
         Reco_nonprompt_mc = list()
         Gen_prompt_mc  = list()
@@ -30,11 +27,18 @@ class McOps(object):
             if not infile:
                 print(f"MC file {mc_file} not found")
                 sys.exit(1)
-
+            print(f"{self.config.Task_name}/hRecoPrompt{frame}")
             Reco_prompt = infile.Get(f"{self.config.Task_name}/hRecoPrompt{frame}")
             Reco_nonprompt = infile.Get(f"{self.config.Task_name}/hRecoNonPrompt{frame}")
             Gen_prompt = infile.Get(f"{self.config.Task_name}/hGenPrompt{frame}")
             Gen_nonprompt = infile.Get(f"{self.config.Task_name}/hGenNonPrompt{frame}")
+
+            cent_min = Reco_prompt.GetAxis(12).FindBin(self.config.BinSet["centrality_cut"][0] + 1e-6)
+            cent_max = Reco_prompt.GetAxis(12).FindBin(self.config.BinSet["centrality_cut"][1] - 1e-6)
+            Reco_prompt.GetAxis(12).SetRange(cent_min, cent_max)
+            Reco_nonprompt.GetAxis(13).SetRange(cent_min, cent_max)
+            Gen_prompt.GetAxis(7).SetRange(cent_min, cent_max)
+            Gen_nonprompt.GetAxis(8).SetRange(cent_min, cent_max)
 
             Reco_prompt.GetAxis(8).SetRange(self.config.BinSet["Min_eta_track"],100)
             Reco_nonprompt.GetAxis(8).SetRange(self.config.BinSet["Min_eta_track"],100)

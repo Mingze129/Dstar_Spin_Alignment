@@ -270,7 +270,6 @@ Task_name = "task-polarisation-charm-hadrons"
 Data_keep_frame = ["Helicity", "Production"]
 Data_keep_axis = np.array([0, 4, 5, 6, 7, 8, 9, 10], dtype=np.int32) # mass, mD0, cosstar, mlbkg, mlfd, mintrack, Nits, Ntpc
 Force_Reducing = False
-Cre_fit_root= True
 
 Qc_check_axes = {
     "Reduced" : [3, 4],

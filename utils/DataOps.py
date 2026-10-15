@@ -3,12 +3,15 @@ import sys
 import gc
 import numpy as np
 from tqdm import tqdm
+from collections import defaultdict
 import ctypes
 import ROOT
 ROOT.gROOT.SetBatch(True)
+ROOT.TH1.AddDirectory(False)
 
 from .Formula import constant_func
 from .McOps import McOps
+from .FitOps import FitOps
 
 class DataOps(object):
 
@@ -25,7 +28,66 @@ class DataOps(object):
     
     def load_data(self):
         self.logger.info("Loading data...")
-        D_file_list = self.config.Files["data"]
+        D_file_list = self.config.Files["Primary_data"]
+        R_file_list = self.config.Files["Reduced_data"]
+        M_file_list = self.config.Files["mc"]
+        self.logger.info(f"target data files: {D_file_list}")
+        self.logger.info(f"target mc files: {M_file_list}")
+        self.logger.info(f"Finding data in directory:  {self.config.Directories['InputDir']}")
+
+        if not os.path.exists(self.config.Directories["InputDir"]):
+            self.logger.error("Input directory does not exist.")
+            sys.exit(1)
+        try:
+            D_file_finded = os.listdir(self.config.Directories["InputDir"]+"/Data/Primary")
+            R_file_finded = os.listdir(self.config.Directories["InputDir"]+"/Data/Reduced")
+            M_file_finded = os.listdir(self.config.Directories["InputDir"]+"/MC")
+        except:
+            self.logger.error("Error when Locate files, please check the directory.")
+            sys.exit(1)
+
+        MC_list = []
+        for M_file in M_file_list:
+            if M_file not in M_file_finded:
+                self.logger.error(f"MC file {M_file} not found.")
+                sys.exit(1)
+            MC_list.append(os.path.join(self.config.Directories["InputDir"],"MC",M_file))
+
+        groups = defaultdict(list)
+        for f in D_file_list:
+            key = f.partition("_part_")[0] + "_reduced.root"
+            groups[key].append(f)
+        groups= dict(groups)
+
+        File_list = []
+        for R_file in R_file_list:
+            if R_file not in list(groups.keys()):
+                self.logger.warning(f"Reduced data and primary data are not consistent.")
+            if R_file not in R_file_finded or self.config.Reducing_data["Force_Reducing"]:
+                if not self.config.Reducing_data["Force_Reducing"]:
+                    self.logger.warning(f"Reduced data file {R_file} not found!\nTry to reduce data file {R_file}...")
+                Reduced_file = []
+                for D_file in groups[R_file]:
+                    if D_file not in D_file_finded:
+                        self.logger.error(f"Data file {D_file} not found.")
+                        sys.exit(1)
+                    self.logger.info(f"Reducing data file {D_file}...")
+                    Reduced_file.append(self.Reduceing(D_file))
+
+                merger = ROOT.TFileMerger(True, False)
+                merger.OutputFile(os.path.join(self.config.Directories["WorkDir"], "Input/Data/Reduced", R_file))
+                print(f"Merging {Reduced_file} into {R_file}")
+                for file in Reduced_file:
+                    merger.AddFile(file)
+                merger.Merge()
+            File_list.append(os.path.join(self.config.Directories["WorkDir"], "Input/Data/Reduced", R_file))
+        
+        self.logger.info(f"Final reading data files: {File_list}")
+        return File_list, MC_list
+
+    def backup(self):
+        self.logger.info("Loading data...")
+        D_file_list = self.config.Files["Primary_data"]
         M_file_list = self.config.Files["mc"]
         self.logger.info(f"target data files: {D_file_list}")
         self.logger.info(f"target mc files: {M_file_list}")
@@ -58,7 +120,7 @@ class DataOps(object):
                     self.logger.error(f"Data file {D_file} not found.")
                     sys.exit(1)
                 reduce_key.append(True)
-            elif self.config.Force_Reducing:
+            elif self.config.Reducing_data["Force_Reducing"]:
                 reduce_key.append(True)
             else:
                 reduce_key.append(False)
@@ -78,12 +140,44 @@ class DataOps(object):
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "EP_Resolution.root")
 
         outfile = ROOT.TFile(outfile_name, "RECREATE")
-        # yield_dir = outfile.mkdir("yield_distribution","",ROOT.kTRUE)
 
         self.logger.info(f"Reading EP from Data...")
-        file_list = self.config.Files["data"]
+        file_list = self.config.Files["Primary_data"]
         for i, file in enumerate(file_list):
             file_list[i] = os.path.join(self.config.Directories["InputDir"],"Data/Primary",file)
+        
+        Thsparse_name = f"hf-task-charm-polarisation/hEP"
+        
+        cent_edges = np.arange(20, 50.1, 1)
+        hmass_list = []
+        for ifile, file in enumerate(file_list):
+            print(f"Reading mass distribution from {file}")
+            infile = ROOT.TFile(file, "READ")
+            Thsparse = infile.Get(Thsparse_name)
+            bkg_max = Thsparse.GetAxis(1).FindBin(0.4 - 1e-6) # ori aixs: 6
+            Thsparse.GetAxis(1).SetRange(0,bkg_max)
+            for icent, (cent_min, cent_max) in enumerate(zip(cent_edges[:-1], cent_edges[1:])):
+                cent_min_bin = Thsparse.GetAxis(2).FindBin(cent_min + 1e-6) # ori aixs: 11
+                cent_max_bin = Thsparse.GetAxis(2).FindBin(cent_max - 1e-6)
+                Thsparse.GetAxis(2).SetRange(cent_min_bin, cent_max_bin)
+                hmass = Thsparse.Projection(0).Clone("hmass")
+                hmass.SetDirectory(0)
+                if ifile == 0:
+                    hmass_list.append(hmass)
+                else:
+                    hmass_list[icent].Add(hmass)
+            infile.Close()
+        hmass_dir = outfile.mkdir("hmass_list")
+
+        Reco_prompt, Reco_nonprompt, Gen_prompt, Gen_nonprompt = self.mc_ops.get_mc_sparse([os.path.join(self.config.Directories["InputDir"],"MC",self.config.Files["mc"][0])],"EP")
+        Reco_total = Reco_prompt.Clone("Reco_total")
+        Reco_total.Add(Reco_nonprompt)
+        hmass_mc = Reco_total.Projection(0).Clone()
+        hmass_dir.cd()
+        hmass_mc.Write("hmass_mc")
+        for icent, (cent_min, cent_max) in enumerate(zip(cent_edges[:-1], cent_edges[1:])):
+            hmass_dir.cd()
+            hmass_list[icent].Write(f"hmass_in_centraility_{cent_min:.0f}_{cent_max:.0f}")
         
         Det_A_C_name = f"hf-task-charm-polarisation/resolEvPlane/hResolEvPlane{self.config.EP_Resolution['Det_A']}{self.config.EP_Resolution['Det_C']}"
         Det_A_B_name = f"hf-task-charm-polarisation/resolEvPlane/hResolEvPlane{self.config.EP_Resolution['Det_A']}{self.config.EP_Resolution['Det_B']}"
@@ -126,6 +220,78 @@ class DataOps(object):
 
         outfile.Close()
 
+    def get_cent_weight(self):
+        old = self.config.Analysis["Name_massfit"]
+        self.config.Analysis["Name_massfit"] = "EP_Resolution"
+        fit = FitOps(self.config, self.logger)
+
+        par_dict_data = []
+        data_file = os.path.join("/home/mingze/work/dstar/Dstar_Spin_Alignment" ,"Output","PbPb_Analysis", "Analysis-root","EP_Resolution.root")
+
+        mc_signal_dir = "hmass_list/hmass_mc"
+        task_name = f"hSignal_From_MC"
+
+        fit_set = { "signal_func": ["doublecb"],
+                    "bkg_func": ["nobkg"],
+                    "chi2_loss": False,
+                    "mass_range": [0.1396, 0.155],
+                    "rebin": 1,
+                    "bin_counting": [False, 0.1396, 0.155],
+                    "init_pars": [False],
+                    "fix_pars":[False],
+                    "Custom_pars":[False],
+                    "threshold": [False],
+                    "corr_bkg": [False],
+                    "out_dir": self.out_dir
+                }
+
+        raw_yield, raw_yield_error, par_dict_data = fit.fit_inv_mass(data_file, mc_signal_dir, task_name, fit_set)
+
+        cent_edges = np.arange(20, 50.1, 1)
+        yield_hist = ROOT.TH1F("yield","yield", 30, np.array(cent_edges, dtype = 'float64'))
+        resol_new = ROOT.TH1F("yield","yield", 30, np.array(cent_edges, dtype = 'float64'))
+
+        outfile = ROOT.TFile(data_file, "UPDATE")   
+        resol_hist = outfile.Get("hEP_resolution")
+        for icent, (cent_min, cent_max) in enumerate(zip(cent_edges[:-1], cent_edges[1:])):
+
+            resol_new.SetBinContent(icent+1, resol_hist.GetBinContent(icent+21))
+            resol_new.SetBinError(icent+1, resol_hist.GetBinError(icent+21))
+            data_dir = f"hmass_list/hmass_in_centraility_{cent_min:.0f}_{cent_max:.0f}"
+            task_name = f"hmass_in_centraility_{cent_min:.0f}_{cent_max:.0f}"
+            fit_set = {"signal_func": ["doublecb"],
+                        "bkg_func": ["expopowext"],
+                        "chi2_loss": False,
+                        "mass_range": [0.1396, 0.160],
+                        "rebin": 1,
+                        "bin_counting": [False, 0.1396, 0.165],
+                        "init_pars": [False, par_dict_data],
+                        "fix_pars": [True,"nl","nr","alphal","alphar"],
+                        "Custom_pars":[False, {"power": 0.5, "power_err": 0.05}],
+                        "threshold": [False],
+                        "corr_bkg": [False],
+                        "out_dir": self.out_dir
+                    }
+            raw_yield , raw_yield_error, par_dict_cos = fit.fit_inv_mass(data_file, data_dir,  task_name, fit_set)
+            yield_hist.SetBinContent(icent+1, raw_yield)
+            yield_hist.SetBinError(icent+1, raw_yield_error)
+
+        resol_new.Multiply(yield_hist)
+        # resol_new.Scale(1.0/yield_hist.Integral())
+        errA = errB = ctypes.c_double(0)
+        A = resol_new.IntegralAndError(1, resol_new.GetNbinsX(), errA)
+        B = yield_hist.IntegralAndError(1, yield_hist.GetNbinsX(), errB)
+        reweighted_scale = A/B
+
+        reweighted_scale_error =  reweighted_scale * np.sqrt( (errA.value/A)*(errA.value/A) + (errB.value/B)*(errB.value/B))
+        outfile.cd()
+        weighted_scale = ROOT.TGraphErrors(1, np.array([1],dtype=np.float64), np.array([reweighted_scale],dtype=np.float64), np.array([1],dtype=np.float64),np.array([reweighted_scale_error],dtype=np.float64))
+        weighted_scale.Write("weighted_scale", ROOT.TObject.kOverwrite)
+        resol_new.Write("hWeighted_EP_Resolution", ROOT.TObject.kOverwrite)
+        yield_hist.Write("yield_hist",ROOT.TObject.kOverwrite)
+        outfile.Close()
+        self.config.Analysis["Name_massfit"] = old
+
     def write_data(self, data):
 
         pt_edges = self.config.BinSet["pt_bin_edges"]  
@@ -156,24 +322,24 @@ class DataOps(object):
                 Tdata = self.get_sparse(data, f"h{frame}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
                 # Tbkg = self.get_sparse(data,f"h{frame}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
 
-                rapidity_min = Tdata.GetAxis(8).FindBin(self.config.BinSet["rapidity_cut"][0]+1e-6)
-                rapidity_max = Tdata.GetAxis(8).FindBin(self.config.BinSet["rapidity_cut"][1]-1e-6)
-                Tdata.GetAxis(8).SetRange(rapidity_min, rapidity_max)
+                rapidity_min = Tdata.GetAxis(self.config.Reducing_data["Rapidity"]).FindBin(self.config.BinSet["rapidity_cut"][0]+1e-6)
+                rapidity_max = Tdata.GetAxis(self.config.Reducing_data["Rapidity"]).FindBin(self.config.BinSet["rapidity_cut"][1]-1e-6)
+                Tdata.GetAxis(self.config.Reducing_data["Rapidity"]).SetRange(rapidity_min, rapidity_max)
                 
-                D0_min = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
-                D0_max = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
-                Tdata.GetAxis(1).SetRange(D0_min,D0_max)
+                # D0_min = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+                # D0_max = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+                # Tdata.GetAxis(1).SetRange(D0_min,D0_max)
                 # Tbkg.GetAxis(1).SetRange(D0_min,D0_max)
 
-                Tdata.GetAxis(5).SetRange(self.config.BinSet["Min_eta_track"],100)
-                # Tbkg.GetAxis(5).SetRange(self.config.BinSet["Min_eta_track"],100)
-                Tdata.GetAxis(6).SetRange(self.config.BinSet["Min_cls_ITS"],100)
-                # Tbkg.GetAxis(6).SetRange(self.config.BinSet["Min_cls_ITS"],100)
-                Tdata.GetAxis(7).SetRange(self.config.BinSet["Min_cls_TPC"],100)
-                # Tbkg.GetAxis(7).SetRange(self.config.BinSet["Min_cls_TPC"],100)
+                Tdata.GetAxis(self.config.Reducing_data["Min_track_eta"]).SetRange(self.config.BinSet["Min_eta_track"],100)
+                # Tbkg.GetAxis(self.config.Reducing_data["Min_track_eta"]).SetRange(self.config.BinSet["Min_eta_track"],100)
+                Tdata.GetAxis(self.config.Reducing_data["N_ITS"]).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+                # Tbkg.GetAxis(self.config.Reducing_data["N_ITS"]).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+                Tdata.GetAxis(self.config.Reducing_data["N_TPC"]).SetRange(self.config.BinSet["Min_cls_TPC"],100)
+                # Tbkg.GetAxis(self.config.Reducing_data["N_TPC"]).SetRange(self.config.BinSet["Min_cls_TPC"],100)
 
-                bkg_max = Tdata.GetAxis(3).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
-                Tdata.GetAxis(3).SetRange(0, bkg_max)
+                # bkg_max = Tdata.GetAxis(3).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
+                # Tdata.GetAxis(3).SetRange(0, bkg_max)
                 # Tbkg.GetAxis(3).SetRange(0, bkg_max)
 
                 qc_dir = pt_bin_dir.mkdir("cut_check","",ROOT.kTRUE)
@@ -198,13 +364,13 @@ class DataOps(object):
                     fd_dir = pt_bin_dir.mkdir(f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}","",ROOT.kTRUE)
                     fd_dir.cd()
         
-                    cos_max = Tdata.GetAxis(2).FindBin(1-1e-6)
-                    Tdata.GetAxis(2).SetRange(0,cos_max)
+                    cos_max = Tdata.GetAxis(self.config.Reducing_data["Cost"]).FindBin(1-1e-6)
+                    Tdata.GetAxis(self.config.Reducing_data["Cost"]).SetRange(0,cos_max)
                     # Tbkg.GetAxis(2).SetRange(0,cos_max)
 
-                    fd_min = Tdata.GetAxis(4).FindBin(fd_min_edge+1e-6)
-                    fd_max = Tdata.GetAxis(4).FindBin(fd_max_edge-1e-6)
-                    Tdata.GetAxis(4).SetRange(fd_min,fd_max)
+                    fd_min = Tdata.GetAxis(self.config.Reducing_data["Np_scores"]).FindBin(fd_min_edge+1e-6)
+                    fd_max = Tdata.GetAxis(self.config.Reducing_data["Np_scores"]).FindBin(fd_max_edge-1e-6)
+                    Tdata.GetAxis(self.config.Reducing_data["Np_scores"]).SetRange(fd_min,fd_max)
                     # Tbkg.GetAxis(4).SetRange(fd_min,fd_max)
 
                     hmass = Tdata.Projection(0).Clone(f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}")
@@ -225,9 +391,9 @@ class DataOps(object):
                         cos_dir = fd_dir.mkdir(f"cos_{cos_min_edge:.1f}_{cos_max_edge:.1f}", "", ROOT.kTRUE)
                         cos_dir.cd()
 
-                        cos_min = Tdata.GetAxis(2).FindBin(cos_min_edge+1e-6)
-                        cos_max = Tdata.GetAxis(2).FindBin(cos_max_edge-1e-6)
-                        Tdata.GetAxis(2).SetRange(cos_min,cos_max)
+                        cos_min = Tdata.GetAxis(self.config.Reducing_data["Cost"]).FindBin(cos_min_edge+1e-6)
+                        cos_max = Tdata.GetAxis(self.config.Reducing_data["Cost"]).FindBin(cos_max_edge-1e-6)
+                        Tdata.GetAxis(self.config.Reducing_data["Cost"]).SetRange(cos_min,cos_max)
                         # Tbkg.GetAxis(2).SetRange(cos_min,cos_max)
 
                         hmass = Tdata.Projection(0).Clone(f"hmass_{frame}_pt_{pt_min_edge}_{pt_max_edge}_cos_{cos_min_edge}_{cos_max_edge}")
@@ -260,8 +426,13 @@ class DataOps(object):
 
         for frame in frame_list:
 
+            # if frame == "EP":
+            #     mc_frame = "Random"
+            # else:
+            #     mc_frame = frame
+
             self.logger.info(f"Writing efficiency and MC signal of {frame} framework...")
-            Reco_prompt, Reco_nonprompt, Gen_prompt, Gen_nonprompt = self.mc_ops.get_mc_sparse(mc,frame)
+            Reco_prompt, Reco_nonprompt, Gen_prompt, Gen_nonprompt = self.mc_ops.get_mc_sparse(mc, frame)
 
             Reco_total = Reco_prompt.Clone("Reco_total")
             Reco_total.Add(Reco_nonprompt)
@@ -441,6 +612,8 @@ class DataOps(object):
                     hEff_total_cos.Divide(hReco_total_cos,hGen_total_cos,1,1,"B")
                     hEff_total_cos.Write("",ROOT.TObject.kOverwrite)
 
+                    hReco_total_cos.Write("",ROOT.TObject.kOverwrite)
+                    hGen_total_cos.Write("",ROOT.TObject.kOverwrite)
                     # Sligihtly different if calculate efficiency from cos's entries
                     # Reco_error = ctypes.c_double()
                     # hReco_Enties_fd.SetBinContent(ifd,Reco_mc.Projection(0).IntegralAndError(1,Reco_mc.Projection(0).GetNbinsX(),Reco_error))
@@ -470,8 +643,8 @@ class DataOps(object):
         infile_name = os.path.join(self.config.Directories["InputDir"], "Data/Primary", file)
         outfile_name = os.path.join(self.config.Directories["InputDir"], "Data/Reduced", reduced_file)
 
-        Reduceing_frame = self.config.Data_keep_frame
-        axis_to_keep = self.config.Data_keep_axis
+        Reduceing_frame = self.config.Reducing_data["Data_keep_frame"]
+        axis_to_keep = self.config.Reducing_data["Data_keep_axis"]
         
         infile = ROOT.TFile(infile_name)
         outfile = ROOT.TFile(outfile_name, "RECREATE")
@@ -482,10 +655,24 @@ class DataOps(object):
 
             pt_edges = self.config.BinSet["pt_bin_edges"]
 
+            cent_min = sparse.GetAxis(11).FindBin(self.config.BinSet["centrality_cut"][0] + 1e-6)
+            cent_max = sparse.GetAxis(11).FindBin(self.config.BinSet["centrality_cut"][1] - 1e-6)
+            sparse.GetAxis(11).SetRange(cent_min,cent_max)
+            
             for pt_min, pt_max in zip(pt_edges[:-1], pt_edges[1:]):
+                pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min:.0f}-{pt_max:.0f}"]
+
                 pt_bin_min = sparse.GetAxis(1).FindBin(pt_min+1e-6)
                 pt_bin_max = sparse.GetAxis(1).FindBin(pt_max-1e-6)
                 sparse.GetAxis(1).SetRange(pt_bin_min, pt_bin_max)
+
+                D0_min = sparse.GetAxis(4).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+                D0_max = sparse.GetAxis(4).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+                sparse.GetAxis(4).SetRange(D0_min,D0_max)
+
+                bkg_max = sparse.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
+                sparse.GetAxis(6).SetRange(0, bkg_max)
+
                 # sparse.GetAxis(11).SetRange(1, 1)
                 sparse_signal_reduced = sparse.Projection(len(axis_to_keep), axis_to_keep)
                 sparse_signal_reduced.SetName(f"h{frame}_pt_{pt_min:.0f}_{pt_max:.0f}_data")
@@ -652,6 +839,9 @@ class DataOps(object):
         frame_list = self.config.Analysis["Framework"]
 
         for frame in frame_list:
+
+            # if frame == "EP":
+            #     frame = "Random"
 
             self.logger.info(f"Writing MC inv-mass of {frame} framework...")
             Reco_prompt, Reco_nonprompt, Gen_prompt, Gen_nonprompt = self.mc_ops.get_mc_sparse(mc,frame)

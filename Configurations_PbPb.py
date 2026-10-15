@@ -4,53 +4,81 @@ import numpy as np
 working_dir = "/home/mingze/work/dstar/Dstar_Spin_Alignment"
 
 Analysis = {
-    "Task_Name": "PbPb_Analysis",
-    "Name_fraction":    "PbPb_test",
-    "Name_writing":     "PbPb_test",
-    "Name_massfit":     "PbPb_test",
-    "Name_rhoextract":  "PbPb_test",
+    "Task_Name":        "PbPb_Analysis",
+    "Name_fraction":    'PbPb_30-50_0-0.8_FT0C',
+    "Name_writing":     'PbPb_30-50_0-0.8_FT0C_Data',
+    "Name_massfit":     'PbPb_30-50_0-0.8_FT0C_Data',
+    "Name_rhoextract":  'PbPb_30-50_0-0.8_FT0C_Data',
+    "Name_Mix_Cands":   'PbPb_30-50_0-0.8_FT0C_Mix_Cands_LHC23',
     # "Framework": ["Helicity", "EP"]
     "Framework": ["EP"]
     # "Framework": ["Helicity", "Production"]
 }
 
 Doing = {
-    "Cut_Variations":       True,
-    "Rewriting_for_frac":   True,
-    "Data_And_Efficiency":  True,
+    "Cut_Variations":       False,
+    "Rewriting_for_frac":   False,
+    "Data_And_Efficiency":  False,
     "Signal_Extraction":    False,
-    "Rho_Extraction":       False,
+    "Rho_Extraction":       True,
     "1-2":     False,
     "2-3":     True,
-    "3-5":     True,
-    "5-7":     True,
-    "7-10":    True,
-    "10-20":   True,
-    "20-30":   True,
+    "3-4":     True,
+    "4-6":     True,
+    "6-8":     True,
+    "8-10":    True,
+    "10-15":   True,
+    "15-30":   False,
     "30-50":   False
 }
 
 Files = {
-    "data": [
-             "AnalysisResults.root"
+    "Primary_data": [
+        # "AnalysisResults_LHC23_apass4_PbPb_20-50_634121_part_0.root",
+        # "AnalysisResults_LHC23_apass4_PbPb_20-50_634121_part_1.root",
+        # "AnalysisResults_LHC23_apass4_PbPb_20-50_634121_part_2.root",
+        # "AnalysisResults_LHC23_apass4_PbPb_20-50_634121_part_3.root",
+        # "AnalysisResults_LHC23_apass4_PbPb_20-50_634121_part_4.root",
+        # "AnalysisResults_LHC23_apass4_PbPb_20-50_634121_part_5.root",
+        # "AnalysisResults_LHC24_apass3_PbPb_20-50_634120_part_0.root",
+        # "AnalysisResults_LHC24_apass3_PbPb_20-50_634120_part_1.root",
+        # "AnalysisResults_LHC24_apass3_PbPb_20-50_634120_part_2.root",
+        # "AnalysisResults_LHC24_apass3_PbPb_20-50_634120_part_3.root",
+        # "AnalysisResults_LHC24_apass3_PbPb_20-50_634120_part_4.root"
+        "AnalysisResults_LHC24_apass3_PbPb_20-50_669042_FT0C.root",
+        "AnalysisResults_LHC23_apass4_PbPb_20-50_669043_FT0C.root"
+    ],
+    "Reduced_data": [
+        # "AnalysisResults_LHC23_apass4_PbPb_30-50_634121_reduced.root",
+        # "AnalysisResults_LHC24_apass3_PbPb_30-50_634120_reduced.root"
+        # "AnalysisResults_LHC23_apass4_PbPb_30-50_669043_FT0C_reduced.root",
+        # "AnalysisResults_LHC24_apass3_PbPb_30-50_669042_FT0C_reduced.root"
+        # "Mix_Cands_reduced_20-25.root",
+        # "Mix_Cands_reduced_26-29.root",
+        "Mix_Cands_reduced_30-50.root"
     ],
     "mc": [
-           "AnalysisResults_MC_PbPb_LHC25a5_547031.root"
+        #    "AnalysisResults_mc_LHC25a5_ptsmear-1p5_vsPhi_20-50_634283.root"
+           "AnalysisResults_MC_LHC25a5_1p5_vsPhi_FT0C_669044.root"
     ],
     "mc_fraction": [1.0], # if multiple mc files, please provide the fraction of each file
     "simulation": [
-        "AnalysisResults_MC_PbPb_LHC25a5_547031.root"
+        "npDstar_PbPb_rho_v2_0p1_thsparse.root"
     ],
 }
 
 BinSet = {
-    "rapidity_cut": [0.0, 0.8],
+    "centrality_cut": [20, 50],
+    "rapidity_cut": [0, 0.8],
     "Mc_reweight": False,
-    "Min_cls_ITS": 0, #{1:4, 2:5, 3:6, 4:7}
-    "Min_cls_TPC": 0, #{1:80, 2:100, 3:120}
-    "Min_eta_track": 0, #{1:0, 2:0.1, 3:0.2}
-    "pt_bin_num": 11,
-    "pt_bin_edges": [1, 2, 3, 5, 7, 10, 20, 30, 50],
+    "Min_cls_ITS": 1, 
+    #{1:4, 2:5, 3:6, 4:7}
+    "Min_cls_TPC": 1, 
+    #{1:80, 2:100, 3:120}
+    "Min_eta_track": 1,
+    #{1:0, 2:0.1, 3:0.2}
+    # "pt_bin_edges": [1, 2, 3, 5, 7, 10, 20, 30, 50],
+    "pt_bin_edges": [1, 2, 3, 4, 6, 8, 10, 15, 30, 50],
     "using_np_mc" :[True, True, True, True, True, True, True, True, True, True, True],
     # "using_np_mc" :[False, False, False, False, False, False, False, False, False, False, False], # --- IGNORE ---
     "corr_with_v2" :[True, True, True, True, True, True, True, True, True, True, True],
@@ -58,187 +86,201 @@ BinSet = {
     "pt_bin_set": {
         "1-2": {
             "doing": Doing["1-2"],
-            "min": 1,
-            "max": 2,
             "D0Mass": [1.74, 1.99],
-            "cos_bin_edges": [-1,-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.9],
-            "Bkg_cut": 0.004,
+            "Bkg_cut": 0.02,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
             "fix_pars": [True,"nl","nr","alphal","alphar"],
             "with_bkg": False,
             "Mass_range": [0.1396, 0.160],
-            "bin_counting": [True, 0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
             "threshold": [False],
             "Rebin": 1,
             "corr_bkg": [False],
             "var_fd_range": np.arange(0.0, 1.0001, 0.02),
             "frac_min_bin": 10,
             "frac_max_bin": 30,
-            "frac_remove_bin": []
+            "frac_remove_bin": [],
+            "Mix_corr": True
         },
         "2-3": {
             "doing": Doing["2-3"],
-            "min": 2,
-            "max": 3,
             "D0Mass": [1.74, 1.99],
-            "cos_bin_edges": [-1,-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.9],
-            "Bkg_cut": 0.004,
+            "Bkg_cut": 0.02,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
             "fix_pars": [True,"nl","nr","alphal","alphar"],
             "with_bkg": False,
             "Mass_range": [0.1396, 0.160],
-            "bin_counting": [True, 0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
             "threshold": [False],
             "Rebin": 1,
             "corr_bkg": [False],
             "var_fd_range": np.arange(0.0, 1.0001, 0.02),
             "frac_min_bin": 15,
-            "frac_max_bin": 40,
-            "frac_remove_bin": []
+            "frac_max_bin": 48,
+            "frac_remove_bin": [],
+            "Mix_corr": True
         },
-        "3-5": {
-            "doing": Doing["3-5"],
-            "min": 3,
-            "max": 5,
+        "3-4": {
+            "doing": Doing["3-4"],
             "D0Mass": [1.74, 1.99],
-            "cos_bin_edges": [-1,-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.9],
-            "Bkg_cut": 0.01,
+            "Bkg_cut": 0.04,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
             "fix_pars": [True,"nl","nr","alphal","alphar"],
             "with_bkg": False,
             "Mass_range": [0.1396, 0.160],
-            "bin_counting": [True, 0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
             "threshold": [False],
             "Rebin": 1,
             "corr_bkg": [False],
             "var_fd_range": np.arange(0.0, 1.0001, 0.02),
             "frac_min_bin": 15,
-            "frac_max_bin": 40,
-            "frac_remove_bin": []
+            "frac_max_bin": 49,
+            "frac_remove_bin": [],
+            "Mix_corr": True
         },
-        "5-7": {
-            "doing": Doing["5-7"],
-            "min": 5,
-            "max": 7,
+        "4-6": {
+            "doing": Doing["4-6"],
             "D0Mass": [1.74, 1.99],
-            "cos_bin_edges": [-1,-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.9],
-            "Bkg_cut": 0.03,
+            "Bkg_cut": 0.2,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
             "fix_pars": [True,"nl","nr","alphal","alphar"],
             "with_bkg": False,
             "Mass_range": [0.1396, 0.160],
-            "bin_counting": [True, 0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
             "threshold": [False],
             "Rebin": 1,
             "corr_bkg": [False],
             "var_fd_range": np.arange(0.0, 1.0001, 0.02),
             "frac_min_bin": 15,
-            "frac_max_bin": 38,
-            "frac_remove_bin": []
+            "frac_max_bin": 49,
+            "frac_remove_bin": [],
+            "Mix_corr": True
         },
-        "7-10": {
-            "doing": Doing["7-10"],
-            "min": 7,
-            "max": 10,
+        "6-8": {
+            "doing": Doing["6-8"],
             "D0Mass": [1.74, 1.99],
-            "cos_bin_edges": [-1,-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.9],
-            "Bkg_cut": 0.15,
+            "Bkg_cut": 0.5,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
             "fix_pars": [True,"nl","nr","alphal","alphar"],
             "with_bkg": False,
             "Mass_range": [0.1396, 0.160],
-            "bin_counting": [True, 0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
             "threshold": [False],
             "Rebin": 1,
             "corr_bkg": [False],
             "var_fd_range": np.arange(0.0, 1.0001, 0.02),
             "frac_min_bin": 15,
-            "frac_max_bin": 38,
-            "frac_remove_bin": []
+            "frac_max_bin": 45,
+            "frac_remove_bin": [],
+            "Mix_corr": True
         },
-        "10-20": {
-            "doing": Doing["10-20"],
-            "min": 10,
-            "max": 20,
+        "8-10": {
+            "doing": Doing["8-10"],
             "D0Mass": [1.74, 1.99],
-            "cos_bin_edges": [-1,-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.9],
-            "Bkg_cut": 0.8,
+            "Bkg_cut": 0.5,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
             "fix_pars": [True,"nl","nr","alphal","alphar"],
             "with_bkg": False,
             "Mass_range": [0.1396, 0.160],
-            "bin_counting": [True, 0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
             "threshold": [False],
             "Rebin": 1,
             "corr_bkg": [False],
             "var_fd_range": np.arange(0.0, 1.0001, 0.02),
             "frac_min_bin": 10,
-            "frac_max_bin": 38,
-            "frac_remove_bin": []
+            "frac_max_bin": 45,
+            "frac_remove_bin": [],
+            "Mix_corr": True
         },
-        "20-30": {
-            "doing": Doing["20-30"],
-            "min": 20,
-            "max": 30,
+        "10-15": {
+            "doing": Doing["10-15"],
             "D0Mass": [1.74, 1.99],
-            "cos_bin_edges": [-1,-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.9],
-            "Bkg_cut": 1,
+            "Bkg_cut": 0.5,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
             "fix_pars": [True,"nl","nr","alphal","alphar"],
             "with_bkg": False,
-            "Mass_range": [0.1396, 0.165],
-            "bin_counting": [True, 0.1396, 0.160],
+            "Mass_range": [0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
             "threshold": [False],
             "Rebin": 3,
             "corr_bkg": [False],
             "var_fd_range": np.arange(0.0, 1.0001, 0.02),
             "frac_min_bin": 10,
-            "frac_max_bin": 30,
-            "frac_remove_bin": []
+            "frac_max_bin": 45,
+            "frac_remove_bin": [],
+            "Mix_corr": True
+        },
+        "15-30": {
+            "doing": Doing["15-30"],
+            "D0Mass": [1.74, 1.99],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "fd_edges": [0.0,0.9],
+            "Bkg_cut": 0.5,
+            "Signal_func": ["doublecb"],
+            "Bkg_func": ["expopowext"],
+            "chi2_loss": False,
+            "fix_pars": [True,"nl","nr","alphal","alphar"],
+            "with_bkg": False,
+            "Mass_range": [0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
+            "threshold": [False],
+            "Rebin": 3,
+            "corr_bkg": [False],
+            "var_fd_range": np.arange(0.0, 1.0001, 0.02),
+            "frac_min_bin": 10,
+            "frac_max_bin": 42,
+            "frac_remove_bin": [],
+            "Mix_corr": False
         },
         "30-50": {
             "doing": Doing["30-50"],
-            "min": 30,
-            "max": 50,
             "D0Mass": [1.74, 1.99],
-            "cos_bin_edges": [-1,-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
+            "cos_bin_edges": [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1],
             "fd_edges": [0.0,0.9],
-            "Bkg_cut": 1,
+            "Bkg_cut": 0.5,
             "Signal_func": ["doublecb"],
             "Bkg_func": ["expopowext"],
             "chi2_loss": False,
             "fix_pars": [True,"nl","nr","alphal","alphar"],
             "with_bkg": False,
             "Mass_range": [0.1396, 0.160],
-            "bin_counting": [True, 0.1396, 0.160],
+            "bin_counting": [False, 0.1396, 0.160],
             "threshold": [False],
             "Rebin": 3,
             "corr_bkg": [False],
             "var_fd_range": np.arange(0.0, 1.0001, 0.02),
             "frac_min_bin": 10,
             "frac_max_bin": 38,
-            "frac_remove_bin": []
+            "frac_remove_bin": [],
+            "Mix_corr": False
         }
     }
 }
@@ -266,19 +308,30 @@ Weights = {
 Template_fit = False
 Plot_np_rho = False
 Task_name = "hf-task-charm-polarisation"
-Data_keep_frame = ["EP"]
-Data_keep_axis = np.array([0, 4, 5, 6, 7, 8, 9, 10, 3], dtype=np.int32) # mass, mD0, cosstar, mlbkg, mlfd, mintrack, Nits, Ntpc, rapidity
+
+# Data_keep_axis = np.array([0, 4, 5, 6, 7, 8, 9, 10, 3], dtype=np.int32) # mass, mD0, cosstar, mlbkg, mlfd, mintrack, Nits, Ntpc, rapidity
+# Data_keep_axis = np.array([0, 5, 7, 8, 9, 10, 3], dtype=np.int32) # mass, cosstar, mlfd, mintrack, Nits, Ntpc, rapidity
+Reducing_data = {
+    "Force_Reducing": False,
+    "Data_keep_frame": ["EP"],
+    "Data_keep_axis": np.array([0, 5, 7, 8, 9, 10, 3], dtype=np.int32),
+    "Mass": 0,
+    "Cost": 1,
+    "Np_scores": 2,
+    "Min_track_eta": 3,
+    "N_ITS": 4,
+    "N_TPC": 5,
+    "Rapidity": 6
+}
 Qc_check_axes = {
-    "Reduced" : [3, 4, 8],
+    "Reduced" : [2, 6],
     "Reco": [1, 3, 4, 6],
     "Gen": [0, 2]
 }
-Force_Reducing = False
-Cre_fit_root= True
 EP_Resolution = {
     "doing": True,
     "Redoing": False,
-    "Det_A": "FT0M",
-    "Det_B": "TPCpos",
-    "Det_C": "TPCneg"
+    "Det_A": "FT0C",
+    "Det_B": "FT0A",
+    "Det_C": "TPCtot"
 }

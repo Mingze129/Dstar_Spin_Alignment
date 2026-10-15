@@ -59,28 +59,28 @@ class FracOps(object):
                     except Exception as e:
                         self.logger.error(f"Error deleting file {file_path}: {e}")
 
-            Tdata = self.data_ops.get_sparse(self.data, f"h{self.config.Data_keep_frame[0]}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
-            # Tbkg = self.data_ops.get_sparse(self.data, f"h{self.config.Data_keep_frame[0]}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
+            Tdata = self.data_ops.get_sparse(self.data, f"h{self.config.Reducing_data['Data_keep_frame'][0]}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_data")
+            # Tbkg = self.data_ops.get_sparse(self.data, f"h{self.config.Reducing_data['Data_keep_frame'][0]}_pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}_rotbkg")
 
-            rapidity_min = Tdata.GetAxis(8).FindBin(self.config.BinSet["rapidity_cut"][0]+1e-6)
-            rapidity_max = Tdata.GetAxis(8).FindBin(self.config.BinSet["rapidity_cut"][1]-1e-6)
-            Tdata.GetAxis(8).SetRange(rapidity_min, rapidity_max)
+            rapidity_min = Tdata.GetAxis(self.config.Reducing_data["Rapidity"]).FindBin(self.config.BinSet["rapidity_cut"][0]+1e-6)
+            rapidity_max = Tdata.GetAxis(self.config.Reducing_data["Rapidity"]).FindBin(self.config.BinSet["rapidity_cut"][1]-1e-6)
+            Tdata.GetAxis(self.config.Reducing_data["Rapidity"]).SetRange(rapidity_min, rapidity_max)
 
-            D0_min = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
-            D0_max = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
-            Tdata.GetAxis(1).SetRange(D0_min,D0_max)
+            # D0_min = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+            # D0_max = Tdata.GetAxis(1).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+            # Tdata.GetAxis(1).SetRange(D0_min,D0_max)
             # Tbkg.GetAxis(1).SetRange(D0_min,D0_max)
 
-            Tdata.GetAxis(5).SetRange(self.config.BinSet["Min_eta_track"],100)
-            Tdata.GetAxis(6).SetRange(self.config.BinSet["Min_cls_ITS"],100)
-            Tdata.GetAxis(7).SetRange(self.config.BinSet["Min_cls_TPC"],100)
+            Tdata.GetAxis(self.config.Reducing_data["Min_track_eta"]).SetRange(self.config.BinSet["Min_eta_track"],100)
+            Tdata.GetAxis(self.config.Reducing_data["N_ITS"]).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+            Tdata.GetAxis(self.config.Reducing_data["N_TPC"]).SetRange(self.config.BinSet["Min_cls_TPC"],100)
 
-            # Tbkg.GetAxis(5).SetRange(self.config.BinSet["Min_eta_track"],100)
-            # Tbkg.GetAxis(6).SetRange(self.config.BinSet["Min_cls_ITS"],100)
-            # Tbkg.GetAxis(7).SetRange(self.config.BinSet["Min_cls_TPC"],100)
+            # Tbkg.GetAxis(self.config.Reducing_data["Min_track_eta"]).SetRange(self.config.BinSet["Min_eta_track"],100)
+            # Tbkg.GetAxis(self.config.Reducing_data["N_ITS"]).SetRange(self.config.BinSet["Min_cls_ITS"],100)
+            # Tbkg.GetAxis(self.config.Reducing_data["N_TPC"]).SetRange(self.config.BinSet["Min_cls_TPC"],100)
 
-            bkg_max = Tdata.GetAxis(3).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
-            Tdata.GetAxis(3).SetRange(0, bkg_max)
+            # bkg_max = Tdata.GetAxis(3).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
+            # Tdata.GetAxis(3).SetRange(0, bkg_max)
             # Tbkg.GetAxis(3).SetRange(0, bkg_max)
 
             fd_edges = pt_bin_set["var_fd_range"]
@@ -89,18 +89,18 @@ class FracOps(object):
     
             if self.config.BinSet["pars_fix_from_mc"][ipt]:
                 self.logger.info(f"Fixing parameters from MC for pt bin {pt_min_edge:.0f}-{pt_max_edge:.0f}")
-                if self.config.Data_keep_frame[0] == "EP":
-                    TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, "EP")
-                else:
-                    TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, f"self.config.Data_keep_frame[0]")
+                TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, self.config.Reducing_data["Data_keep_frame"][0])
 
+                D0_min = TReco_prompt.GetAxis(4).FindBin(pt_bin_set["D0Mass"][0]+1e-6)
+                D0_max = TReco_prompt.GetAxis(4).FindBin(pt_bin_set["D0Mass"][1]-1e-6)
+                bkg_max = TReco_prompt.GetAxis(6).FindBin(pt_bin_set["Bkg_cut"]-1e-6)
                 for Th_mc in [TReco_prompt, TReco_nonprompt]:
                     Th_mc.GetAxis(3).SetRange(rapidity_min, rapidity_max)
                     Th_mc.GetAxis(4).SetRange(D0_min,D0_max)
                     Th_mc.GetAxis(8).SetRange(self.config.BinSet["Min_eta_track"],100)
                     Th_mc.GetAxis(9).SetRange(self.config.BinSet["Min_cls_ITS"],100)
                     Th_mc.GetAxis(10).SetRange(self.config.BinSet["Min_cls_TPC"],100)
-                    Th_mc.GetAxis(5).SetRange(6, bkg_max)
+                    Th_mc.GetAxis(6).SetRange(0, bkg_max)
 
                 Prompt_Signal = TReco_prompt.Projection(0)
                 Nonprompt_Signal = TReco_nonprompt.Projection(0)
@@ -148,13 +148,13 @@ class FracOps(object):
                   
             for icut, fd_min_edge in enumerate(fd_edges[:-1]):
 
-                cos_max = Tdata.GetAxis(2).FindBin(1-1e-6)
-                Tdata.GetAxis(2).SetRange(0,cos_max)
+                cos_max = Tdata.GetAxis(self.config.Reducing_data["Cost"]).FindBin(1-1e-6)
+                Tdata.GetAxis(self.config.Reducing_data["Cost"]).SetRange(0,cos_max)
                 # Tbkg.GetAxis(2).SetRange(0,cos_max)
 
-                fd_min = Tdata.GetAxis(4).FindBin(fd_min_edge+1e-6)
-                fd_max = Tdata.GetAxis(4).FindBin(1.0-1e-6)
-                Tdata.GetAxis(4).SetRange(fd_min, fd_max)
+                fd_min = Tdata.GetAxis(self.config.Reducing_data["Np_scores"]).FindBin(fd_min_edge+1e-6)
+                fd_max = Tdata.GetAxis(self.config.Reducing_data["Np_scores"]).FindBin(1.0-1e-6)
+                Tdata.GetAxis(self.config.Reducing_data["Np_scores"]).SetRange(fd_min, fd_max)
                 # Tbkg.GetAxis(4).SetRange(fd_min, fd_max)
 
                 self.logger.info(f"Cut-variation, icut = {icut}, fd_min_edge = {fd_min_edge:.3f}")
@@ -278,10 +278,7 @@ class FracOps(object):
         
         pt_edges = self.config.BinSet["pt_bin_edges"]
 
-        if self.config.Data_keep_frame[0] == "EP":
-            TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, "EP")
-        else:
-            TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, f"self.config.Data_keep_frame[0]") 
+        TReco_prompt, TReco_nonprompt, TGen_prompt, TGen_nonprompt = self.mc_ops.get_mc_sparse(self.mc, self.config.Reducing_data["Data_keep_frame"][0]) 
         for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
             gc.collect()
             pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]

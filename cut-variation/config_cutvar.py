@@ -10,10 +10,10 @@ bin_set = config.BinSet["pt_bin_set"]
 task_name = config.Analysis["Task_Name"]
 Ana_name = config.Analysis["Name_fraction"]
 
-pt_min = 30
-pt_max = 50
+pt_min = 15
+pt_max = 30
 start_bin = 10
-end_bin = 38
+end_bin = 42
 remove_bin = []
 
 fd_edges = bin_set[f"{pt_min}-{pt_max}"]["var_fd_range"]

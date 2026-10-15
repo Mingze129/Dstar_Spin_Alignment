@@ -19,10 +19,6 @@ class FitOps(object):
         self.logger = logger
         self.config = config
         self.out_dir = os.path.join(self.config.Directories["OutputDir"], self.config.Analysis["Task_Name"])
-        if config.Cre_fit_root:
-            self.fit_file = os.path.join(os.path.join(self.out_dir, "Mass-Fit"), self.config.Analysis["Name_massfit"]+'_Fit.root')
-            fit_root = ROOT.TFile(self.fit_file, "RECREATE")
-            fit_root.Close()
         self.ax_title = r"$M(\mathrm{K\pi\pi}) - M(\mathrm{K\pi})$ GeV$/c^2$"
         self.func_pars = {
             "Init_value": {"sigma": 0.0005,
@@ -39,7 +35,9 @@ class FitOps(object):
             "crystalball": ["alpha","n","mu","sigma"],
             "doublecb": ["frac","mu","sigma","alphal","alphar","nl","nr"],
             "nosignal": [],
-            "nobkg": []
+            "nobkg": [],
+            "genergausexptail": ["mu","sigmal","alphal","sigmar","alphar"],
+            "genercrystalball": ["mu", "sigmal", "alphal","nl","sigmar","alphar","nr"]
         }    
         
     def get_raw_yield(self):
@@ -193,6 +191,8 @@ class FitOps(object):
                         if ifd == 0:
                             init_pars_set = [False, fd_bin_pars]
                             fix_pars_set = pt_bin_set["fix_pars"]
+                            if frame == "EP":
+                                fix_pars_set = [True,"nl","nr","alphal","alphar","sigma", "mu"]
                         else:
                             init_pars_set = [False, cos_dict_list[icos]]
                             fix_pars_set = [True,"nl","nr","alphal","alphar","sigma"]
@@ -330,7 +330,7 @@ class FitOps(object):
                 if not os.path.exists(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root')):
                     fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root'), "RECREATE")
                     fit_root.Close()
-                fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.fit_file)}", option="update",
+                fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.config.Analysis['Name_massfit']+'_Fit.root')}", option="update",
                                         suffix=f"_{task_name}")
             except:
                 fig , axs= fitter.plot_mass_fit(style="ATLAS", show_extra_info=False,
@@ -341,7 +341,7 @@ class FitOps(object):
                     fit_root = ROOT.TFile(os.path.join(fit_dir, self.config.Analysis["Name_massfit"]+'_Fit.root'), "RECREATE")
                     fit_root.Close()
                 try:
-                    fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.fit_file)}", option="update",
+                    fitter.dump_to_root(filename = f"{os.path.join(fit_dir, self.config.Analysis['Name_massfit']+'_Fit.root')}", option="update",
                                         suffix=f"_{task_name}")
                 except:
                     self.logger.error(f"Failed to save fit results for {task_name}!")
@@ -357,7 +357,6 @@ class FitOps(object):
                 self.logger.error(f"Fit for {task_name} is not converged!")
             except:
                 self.logger.error(f"Fit for {task_name} is not converged! and can't save figure!")
-
         par_dict = {}
         for par in self.func_pars[fit_set["bkg_func"][0]]:
             if fit_set["corr_bkg"][0] :

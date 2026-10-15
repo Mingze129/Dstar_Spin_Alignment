@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import ctypes
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -56,6 +57,7 @@ class SpinOps(object):
                 fd_bins = np.array(fd_edges)
                 hraw_rho = ROOT.TH1F("hraw_rho", "hraw_rho;fd_score;#rho", len(fd_bins)-1, fd_bins)
                 hcorr_rho = ROOT.TH1F("hcorr_rho", "hcorr_rho;fd_score;#rho", len(fd_bins)-1, fd_bins)
+                hmix_corr_rho = ROOT.TH1F("hmix_corr_rho", "hmix_corr_rho;fd_score;#rho", len(fd_bins)-1, fd_bins)
 
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
 
@@ -69,6 +71,18 @@ class SpinOps(object):
 
                     raw_yield_hist = fd_dir.Get("hraw_yield")
                     corr_yield_hist = fd_dir.Get("hcorr_yield")
+                    if pt_bin_set["Mix_corr"]:
+                        mix_dir = os.path.join(self.config.Analysis["Name_Mix_Cands"], frame, 
+                                               f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}",
+                                               f"fd_{fd_min_edge:.2f}_{fd_max_edge:.2f}",
+                                               "hraw_yield")
+                        Mix_corr = outfile.Get(mix_dir)
+                        mix_corr_hist = raw_yield_hist.Clone("mix_corr_hist")
+                        mix_corr_hist.Divide(Mix_corr)
+
+                        mix_corr_fit_plot, mix_corr_fit_pars = self.get_rho_plot(mix_corr_hist)
+                        mix_corr_fit_plot.Write("mix_corr_yield_fit", ROOT.TObject.kOverwrite)
+
                     if not raw_yield_hist or not corr_yield_hist:
                         print(f"Raw yield or efficiency histogram not found in {fd_dir.GetName()}")
                         continue
@@ -82,20 +96,41 @@ class SpinOps(object):
                     corr_fit_plot.Write("corr_yield_fit", ROOT.TObject.kOverwrite)
                     if self.config.EP_Resolution["doing"] and frame == "EP":
                         Resolution_file = ROOT.TFile(os.path.join(self.out_dir, "Analysis-root", "EP_Resolution.root"), "READ")
-                        Resolution_hist = Resolution_file.Get("hEP_resolution")
-                        EP_Resolution = self.get_resolution(Resolution_hist, 30, 50)
+                        # Arithmetic Average
+                        # Resolution_hist = Resolution_file.Get("hEP_resolution")
+                        # EP_Resolution = self.get_resolution(Resolution_hist, 30, 50)
+                        Weighted_R2 = Resolution_file.Get("hWeighted_EP_Resolution")
+                        yield_hist = Resolution_file.Get("yield_hist")
+                        errA = errB = ctypes.c_double(0)
+                        A = Weighted_R2.IntegralAndError(self.config.BinSet["centrality_cut"][0]-19, self.config.BinSet["centrality_cut"][1]-20, errA)
+                        B = yield_hist.IntegralAndError(self.config.BinSet["centrality_cut"][0]-19, self.config.BinSet["centrality_cut"][1]-20, errB)
+                        reweighted_scale = A/B
+                        reweighted_scale_error =  reweighted_scale * np.sqrt( (errA.value/A)*(errA.value/A) + (errB.value/B)*(errB.value/B))
+                        Resolution_point = ROOT.TGraphErrors(1, np.array([1],dtype=np.float64), np.array([reweighted_scale],dtype=np.float64), np.array([1],dtype=np.float64),np.array([reweighted_scale_error],dtype=np.float64))
+                        fd_dir.cd()
+                        Resolution_point.Write(f"EP_Resolution_{self.config.BinSet['centrality_cut'][0]}_{self.config.BinSet['centrality_cut'][1]}", ROOT.TObject.kOverwrite)
+                        EP_Resolution = Resolution_point.GetY()[0]
                         corr_fit_pars[0] = 1/3 + (corr_fit_pars[0] - 1/3) * (4/(1 + 3*EP_Resolution))
                         corr_fit_pars[1] = corr_fit_pars[1] * (4/(1 + 3*EP_Resolution))
+                        if pt_bin_set["Mix_corr"]:
+                            mix_corr_fit_pars[0] = 1/3 + (mix_corr_fit_pars[0] - 1/3) * (4/(1 + 3*EP_Resolution))
+                            mix_corr_fit_pars[1] = mix_corr_fit_pars[1] * (4/(1 + 3*EP_Resolution))
                     hcorr_rho.SetBinContent(bin_num, corr_fit_pars[0])
                     hcorr_rho.SetBinError(bin_num, corr_fit_pars[1])
+
+                    if pt_bin_set["Mix_corr"]:
+                        hmix_corr_rho.SetBinContent(bin_num, mix_corr_fit_pars[0])
+                        hmix_corr_rho.SetBinError(bin_num, mix_corr_fit_pars[1])
 
                 pt_bin_dir.cd()
                 hraw_rho.Write("", ROOT.TObject.kOverwrite)
                 hcorr_rho.Write("", ROOT.TObject.kOverwrite)
+                if pt_bin_set["Mix_corr"]:
+                    hmix_corr_rho.Write("", ROOT.TObject.kOverwrite)
 
         outfile.Close()
 
-    def write_simu_rho(self):
+    def write_mc_rho(self):
 
         outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
         outfile = ROOT.TFile(outfile_name, "UPDATE")
@@ -125,7 +160,7 @@ class SpinOps(object):
                
                 simu_dir = pt_bin_dir.mkdir("Simulation","",ROOT.kTRUE)
 
-                simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Files["simulation"]]
+                simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Files["mc"]]
                 TPrompt = self.get_sparse(simu_file_list, f"hf-task-charm-polarisation/hGenPrompt{mc_frame}")
                 TNonPrompt = self.get_sparse(simu_file_list, f"hf-task-charm-polarisation/hGenNonPrompt{mc_frame}")
 
@@ -134,8 +169,8 @@ class SpinOps(object):
                 TPrompt.GetAxis(0).SetRange(pt_min, pt_max)
                 TNonPrompt.GetAxis(0).SetRange(pt_min, pt_max)
 
-                y_min = TPrompt.GetAxis(2).FindBin(-0.8+1e-6)
-                y_max = TPrompt.GetAxis(2).FindBin(0.8-1e-6)
+                y_min = TPrompt.GetAxis(2).FindBin(self.config.BinSet["rapidity_cut"][0]+1e-6)
+                y_max = TPrompt.GetAxis(2).FindBin(self.config.BinSet["rapidity_cut"][1]-1e-6)
                 TPrompt.GetAxis(2).SetRange(y_min, y_max)
                 TNonPrompt.GetAxis(2).SetRange(y_min, y_max)
 
@@ -160,13 +195,87 @@ class SpinOps(object):
                 simu_dir.cd()
                 simu_rho.Write("simu_rho", ROOT.TObject.kOverwrite) 
 
+                Canve = ROOT.TCanvas(f"rho_{frame}",f"rho_{frame}",800,600)
+
+                rho = ROOT.TH1F("","",2,0,2)
+                rho.SetBinContent(1,pro_rho[0])
+                rho.SetBinError(1,pro_rho[1])
+                rho.SetBinContent(2,nonpro_rho[0])
+                rho.SetBinError(2,nonpro_rho[1])
+                rho.Draw("E1")
+
+                Canve.Write("Simu_rho", ROOT.TObject.kOverwrite)
+
+        outfile.Close()
+
+    def write_simu_rho(self):
+
+        outfile_name = os.path.join(self.out_dir, "Analysis-root", "Frac_And_Rho.root")
+        outfile = ROOT.TFile(outfile_name, "UPDATE")
+        ana_dir = outfile.mkdir(self.config.Analysis["Name_rhoextract"],"",ROOT.kTRUE)
+        ana_dir.cd()
+
+        pt_edges = self.config.BinSet["pt_bin_edges"]  
+        frame_list = self.config.Analysis["Framework"]
+
+        for frame in frame_list:
+
+            type_dir = ana_dir.mkdir(frame,"",ROOT.kTRUE)
+            type_dir.cd()
+
+            for pt_min_edge, pt_max_edge in zip(pt_edges[:-1], pt_edges[1:]):
+
+                pt_bin_set = self.config.BinSet["pt_bin_set"][f"{pt_min_edge:.0f}-{pt_max_edge:.0f}"]
+                
+                if not pt_bin_set["doing"]:
+                    continue
+                pt_bin_dir = type_dir.mkdir(f"pt_{pt_min_edge:.0f}_{pt_max_edge:.0f}","",ROOT.kTRUE)
+
+                simu_dir = pt_bin_dir.mkdir("Simulation","",ROOT.kTRUE)
+
+                simu_file_list = [os.path.join(self.config.Directories["InputDir"], "MC", file_name) for file_name in self.config.Files["simulation"]]
+                TNonPrompt_v2_corr = self.get_sparse(simu_file_list, "ths")
+
+                pt_min = TNonPrompt_v2_corr.GetAxis(0).FindBin(pt_min_edge+1e-6)
+                pt_max = TNonPrompt_v2_corr.GetAxis(0).FindBin(pt_max_edge-1e-6)
+                TNonPrompt_v2_corr.GetAxis(0).SetRange(pt_min, pt_max)
+
+                y_min = TNonPrompt_v2_corr.GetAxis(1).FindBin(self.config.BinSet["rapidity_cut"][0]+1e-6)
+                y_max = TNonPrompt_v2_corr.GetAxis(1).FindBin(self.config.BinSet["rapidity_cut"][1]-1e-6)
+                TNonPrompt_v2_corr.GetAxis(1).SetRange(y_min, y_max)
+
+                TNonPrompt_v2_corr_hist = TNonPrompt_v2_corr.Projection(2).Clone("prompt_hist")
+
+                simu_dir.cd()
+                TNonPrompt_v2_corr_hist.Write("TNonPrompt_v2_corr_hist", ROOT.TObject.kOverwrite)
+
+                pro_plot, pro_rho = self.get_rho_plot(TNonPrompt_v2_corr_hist)
+                simu_dir.cd()
+                pro_plot.Write("TNonPrompt_v2_corr_fit", ROOT.TObject.kOverwrite)
+
+                corr_rho_list = np.array([pro_rho[0]],dtype=np.float64)
+                corr_rho_error_list = np.array([pro_rho[1]],dtype=np.float64)
+                simu_rho = ROOT.TGraphErrors(1,np.array([1],dtype=np.float64), corr_rho_list, np.array([0],dtype=np.float64), corr_rho_error_list)
+                
+                simu_dir.cd()
+                simu_rho.Write("TNonPrompt_v2_corr_rho", ROOT.TObject.kOverwrite)
+
+                Canve = ROOT.TCanvas(f"rho_{frame}",f"rho_{frame}",800,600)
+
+                rho = ROOT.TH1F("","",1,0,1)
+                rho.SetBinContent(1,pro_rho[0])
+                rho.SetBinError(1,pro_rho[1])
+                rho.Draw("E1")
+
+                Canve.Write("Simu_rho", ROOT.TObject.kOverwrite)
+
         outfile.Close()
 
     def get_rho_plot(self, hraw_yield):
                     
         func = ROOT.TF1("frho00","[0]*((1-[1])+(3*[1]-1)*x*x)",-1,1)
         func.SetParameter(0,1)
-        func.SetParameter(1,0.3)
+        func.SetParameter(1,0.33)
         func.SetParLimits(1,0,0.8)
 
         hraw_yield.Fit(func,"R,S")
@@ -227,7 +336,10 @@ class SpinOps(object):
                 fd_edges = pt_bin_set["fd_edges"]
 
                 hnp_fraction = pt_bin_dir.Get("hfrac")
-                hcorr_rho = pt_bin_dir.Get("hcorr_rho")
+                if pt_bin_set["Mix_corr"]:
+                    hcorr_rho = pt_bin_dir.Get("hmix_corr_rho")
+                else:
+                    hcorr_rho = pt_bin_dir.Get("hcorr_rho")
                 
                 frac_list = []
                 frac_error = []
@@ -246,23 +358,26 @@ class SpinOps(object):
 
                 if self.config.BinSet["using_np_mc"][ipt]:
                     hrho = ROOT.TH1F("hrho","#rho_{00};f_nonprompt;#rho_{00}",2,-0.5,1.5)
-                    hSimurho = pt_bin_dir.Get("Simulation/simu_rho")
-                    frac_list.append(1.0)
-                    frac_error.append(0.0)
-                    corr_rho_list.append(hSimurho.GetY()[1])
-                    corr_rho_error.append(hSimurho.GetErrorY(1))
                     #non-prompt rho00 correction
-                    if self.config.BinSet["corr_with_v2"][ipt]:       
-                        non_prompt_rho = (0.26-1/3) * frac_list[0] + 1/3
-                        non_prompt_rho_error = abs(0.26-1/3) * frac_error[0]
+                    if self.config.BinSet["corr_with_v2"][ipt]:
+                        hSimurho = pt_bin_dir.Get("Simulation/TNonPrompt_v2_corr_rho")
+                        corr_rho_list.append(hSimurho.GetY()[0])
+                        corr_rho_error.append(hSimurho.GetErrorY(0))
+                        non_prompt_rho = hSimurho.GetY()[0]
+                        non_prompt_rho_error = hSimurho.GetErrorY(0)
                         hrho.SetBinContent(2,non_prompt_rho)
                         hrho.SetBinError(2,non_prompt_rho_error)
                         prompt_rho = (corr_rho_list[0] - frac_list[0] * non_prompt_rho) / (1-frac_list[0])
                         prompt_rho_error = np.sqrt( (corr_rho_error[0]/(1-frac_list[0]))**2 + (frac_error[0]*(non_prompt_rho - prompt_rho)/(1-frac_list[0]))**2 + (non_prompt_rho_error*frac_list[0]/(1-frac_list[0]))**2 )
                     else:
+                        hSimurho = pt_bin_dir.Get("Simulation/simu_rho")
+                        corr_rho_list.append(hSimurho.GetY()[1])
+                        corr_rho_error.append(hSimurho.GetErrorY(1))
                         prompt_rho = (corr_rho_list[0] - frac_list[0] * corr_rho_list[1]) / (1-frac_list[0])
                         prompt_rho_error = np.sqrt( (corr_rho_error[0]/(1-frac_list[0]))**2 + (frac_error[0]*(corr_rho_list[1] - prompt_rho)/(1-frac_list[0]))**2 + (corr_rho_error[1]*frac_list[0]/(1-frac_list[0]))**2 )
             
+                    frac_list.append(1.0)
+                    frac_error.append(0.0)
                     hrho.SetBinContent(1,prompt_rho)
                     hrho.SetBinError(1,prompt_rho_error)
 
@@ -456,7 +571,7 @@ class SpinOps(object):
                 sys.exit(1)
             
         return sparse[0]
-        
+
     def read_frac(self):
         
         pt_edges = self.config.BinSet["pt_bin_edges"]  
@@ -517,6 +632,7 @@ class SpinOps(object):
                     hEff_total = pt_bin_dir_eff.Get("fd_0.00_1.00/hEff_total_cos")
                 else:
                     hEff_total = pt_bin_dir_eff.Get(f"fd_{fd_edges[0]:.2f}_{fd_edges[1]:.2f}/hEff_total_cos")
+
                 for ifd, (fd_min_edge, fd_max_edge) in enumerate(zip(fd_min_edges, fd_max_edges)):
 
                     if len(fd_edges) > 2:

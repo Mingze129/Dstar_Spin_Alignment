@@ -6,6 +6,7 @@ import ctypes
 from datetime import datetime
 sys.path.append("./Sys_config/PbPb")
 sys.path.append("./Sys_config/pp")
+sys.path.append("./Sys_config/Mix_Cands")
 
 now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -65,6 +66,7 @@ if config.Doing["Data_And_Efficiency"]:
     data, mc = data_ops.load_data()
     if config.EP_Resolution["Redoing"]:
         data_ops.write_EP_resolution()
+        data_ops.get_cent_weight()
     data_ops.write_data(data)
     data_ops.write_mc(mc)
     if config.Template_fit:
@@ -83,6 +85,7 @@ if config.Doing["Rho_Extraction"]:
     spin_ops.read_frac()
     logger.info("Extracted rho by fit the corrected yield...")
     spin_ops.get_rho()
+    # spin_ops.write_mc_rho()
     spin_ops.write_simu_rho()
     spin_ops.extro_rho()
     spin_ops.plot_rho()
